@@ -1,0 +1,3834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于迁移学习特征与多模态异构集成的帕金森病全维筛查系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #06ffa5;
+            --danger-color: #ff006e;
+            --warning-color: #ffbe0b;
+            --light-bg: #f8f9fa;
+            --dark-bg: #212529;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            color: #333;
+            min-height: 100vh;
+            padding-top: 60px;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background-color: #f9f9f9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #aaa;
+            margin-bottom: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 6px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+        }
+
+        .video-preview {
+            width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            background-color: #000;
+            margin-bottom: 1rem;
+        }
+
+        /* 摄像头相关样式优化 */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .camera-view {
+            position: relative;
+            width: 100%;
+            padding-bottom: 75%; /* 4:3 宽高比 */
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #camera-feed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .camera-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .camera-instructions {
+            background-color: rgba(67, 97, 238, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .camera-instructions.active {
+            display: block;
+        }
+
+        .camera-instructions h5 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .camera-instructions p {
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .camera-instructions i {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card {
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .result-card.risk-high {
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.1), rgba(255, 0, 110, 0.2));
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .result-card.risk-medium {
+            background: linear-gradient(135deg, rgba(255, 190, 11, 0.1), rgba(255, 190, 11, 0.2));
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .result-card.risk-low {
+            background: linear-gradient(135deg, rgba(6, 255, 165, 0.1), rgba(6, 255, 165, 0.2));
+            border-left: 5px solid var(--success-color);
+        }
+
+        .result-card.risk-normal {
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(67, 97, 238, 0.2));
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .result-card.risk-mild {
+            background: linear-gradient(135deg, rgba(255, 190, 11, 0.08), rgba(255, 190, 11, 0.15));
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .result-card.risk-extreme {
+            background: linear-gradient(135deg, rgba(156, 0, 75, 0.1), rgba(156, 0, 75, 0.2));
+            border-left: 5px solid #9c004b;
+        }
+
+        .probability-bar {
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            background-color: #e9ecef;
+            margin-bottom: 1rem;
+        }
+
+        .probability-fill {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            transition: width 1s ease;
+        }
+
+        .probability-parkinsons {
+            background: linear-gradient(90deg, var(--danger-color), #ff4458);
+        }
+
+        .probability-healthy {
+            background: linear-gradient(90deg, var(--success-color), #06d6a0);
+        }
+
+        .feature-chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 2rem;
+        }
+
+        .tab-content {
+            padding: 1.5rem 0;
+        }
+
+        .nav-pills .nav-link {
+            border-radius: 8px;
+            margin-right: 0.5rem;
+            font-weight: 500;
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-name {
+            font-weight: 500;
+        }
+
+        .feature-value {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .model-info {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+
+        .custom-toast {
+            min-width: 300px;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background-color: rgba(6, 255, 165, 0.2);
+            color: var(--success-color);
+        }
+
+        .status-disconnected {
+            background-color: rgba(255, 0, 110, 0.2);
+            color: var(--danger-color);
+        }
+
+        /* PD量表样式 */
+        .scale-section {
+            margin-top: 2rem;
+        }
+
+        .scale-item {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .scale-question {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .scale-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .scale-option {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .weight-display {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background-color: rgba(67, 97, 238, 0.1);
+            font-size: 0.9rem;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .step-circle.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .step-circle.completed {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .result-breakdown {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        .weight-bar {
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #e9ecef;
+            margin-bottom: 0.5rem;
+            display: flex;
+        }
+
+        .weight-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .video-segment {
+            background-color: rgba(67, 97, 238, 0.8);
+        }
+
+        .scale-segment {
+            background-color: rgba(255, 190, 11, 0.8);
+        }
+
+        .scoring-criteria {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .score-item:last-child {
+            border-bottom: none;
+        }
+
+        .score-range {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .score-description {
+            flex: 1;
+            margin-left: 1rem;
+        }
+
+        .scale-score-display {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background-color: rgba(67, 97, 238, 0.1);
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1001;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 0.25rem;
+            margin-left: 0.5rem;
+        }
+
+        .risk-badge.risk-normal {
+            background-color: rgba(67, 97, 238, 0.2);
+            color: var(--primary-color);
+        }
+
+        .risk-badge.risk-low {
+            background-color: rgba(6, 255, 165, 0.2);
+            color: var(--success-color);
+        }
+
+        .risk-badge.risk-mild {
+            background-color: rgba(255, 190, 11, 0.2);
+            color: var(--warning-color);
+        }
+
+        .risk-badge.risk-medium {
+            background-color: rgba(255, 145, 0, 0.2);
+            color: #ff9100;
+        }
+
+        .risk-badge.risk-high {
+            background-color: rgba(255, 0, 110, 0.2);
+            color: var(--danger-color);
+        }
+
+        .risk-badge.risk-extreme {
+            background-color: rgba(156, 0, 75, 0.2);
+            color: #9c004b;
+        }
+
+        .scale-progress {
+            margin-top: 0.5rem;
+        }
+
+        .progress {
+            height: 0.5rem;
+        }
+
+        .scale-summary-card {
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: #f8f9fa;
+        }
+
+        .scale-summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .scale-summary-title {
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .scale-summary-score {
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .scale-summary-risk {
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .scale-status {
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-empty {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+
+        .status-partial {
+            background-color: rgba(255, 190, 11, 0.2);
+            color: var(--warning-color);
+        }
+
+        .status-complete {
+            background-color: rgba(6, 255, 165, 0.2);
+            color: var(--success-color);
+        }
+
+        .scale-tabs {
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-pane {
+            padding-top: 1rem;
+        }
+
+        .save-scale-btn {
+            margin-top: 1rem;
+        }
+
+        .scale-summary {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .scale-summary-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .scale-summary-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scale-summary-status {
+            font-size: 0.875rem;
+        }
+
+        .scale-summary-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .voice-upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background-color: #f9f9f9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .voice-upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        .voice-upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+
+        .voice-upload-icon {
+            font-size: 3rem;
+            color: #aaa;
+            margin-bottom: 1rem;
+        }
+
+        .multimodal-upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            background-color: #f9f9f9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .multimodal-upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        .multimodal-upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+
+            .section-card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 连接状态指示器 -->
+    <div id="connection-status" class="connection-status status-disconnected">
+        <i class="bi bi-circle-fill me-1"></i>
+        <span id="status-text">未连接</span>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-activity"></i>
+               帕金森病全维筛查系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#upload-section">手部分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#gait-section">步态分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#voice-section">语音分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#spiral-section">螺旋图分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#fusion-section">融合分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#scale-section">量表评估</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#camera-section">实时检测</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#results-section">结果查看</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 手部视频上传与分析部分 -->
+        <section id="upload-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-upload"></i>
+                手部视频分析
+            </h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area" id="upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽手部视频文件到此处或点击上传</h4>
+                        <p class="text-muted">支持 MP4, AVI, MOV 格式</p>
+                        <input type="file" id="video-input" accept="video/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="file-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="file-name"></span>
+                            <span id="file-size" class="float-end"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button id="analyze-btn" class="btn btn-primary" disabled>
+                            <i class="bi bi-play-circle"></i>
+                            开始分析
+                        </button>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" value="" id="use-saved-scales">
+                            <label class="form-check-label" for="use-saved-scales">
+                                使用已保存的量表数据（如果有）
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <video id="video-preview" class="video-preview" controls style="display: none;"></video>
+                    <div id="video-placeholder" class="d-flex align-items-center justify-content-center video-preview bg-light">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-camera-video" style="font-size: 3rem;"></i>
+                            <p>手部视频预览区域</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="analysis-progress" style="display: none;">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h5>正在分析手部视频...</h5>
+                            <div class="progress mb-2">
+                                <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-muted mb-0" id="progress-text">准备中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 步态分析部分 -->
+        <section id="gait-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-person-walking"></i>
+                步态分析
+            </h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area" id="gait-upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽步态视频文件到此处或点击上传</h4>
+                        <p class="text-muted">支持 MP4, AVI, MOV 格式</p>
+                        <p class="text-muted">请确保视频中包含完整的行走过程</p>
+                        <input type="file" id="gait-video-input" accept="video/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="gait-file-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="gait-file-name"></span>
+                            <span id="gait-file-size" class="float-end"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button id="analyze-gait-btn" class="btn btn-primary" disabled>
+                            <i class="bi bi-play-circle"></i>
+                            开始分析步态
+                        </button>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" value="" id="use-saved-scales-for-gait">
+                            <label class="form-check-label" for="use-saved-scales-for-gait">
+                                使用已保存的量表数据（如果有）
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <video id="gait-video-preview" class="video-preview" controls style="display: none;"></video>
+                    <div id="gait-video-placeholder" class="d-flex align-items-center justify-content-center video-preview bg-light">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-person-walking" style="font-size: 3rem;"></i>
+                            <p>步态视频预览区域</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="gait-analysis-progress" style="display: none;">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h5>正在分析步态视频...</h5>
+                            <div class="progress mb-2">
+                                <div id="gait-progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-muted mb-0" id="gait-progress-text">准备中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 语音分析部分 -->
+        <section id="voice-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-mic"></i>
+                语音分析
+            </h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="voice-upload-area" id="voice-upload-area">
+                        <i class="bi bi-cloud-upload voice-upload-icon"></i>
+                        <h4>拖拽语音文件到此处或点击上传</h4>
+                        <p class="text-muted">支持 WAV, MP3, FLAC, M4A 格式</p>
+                        <input type="file" id="voice-input" accept="audio/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="voice-file-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="voice-file-name"></span>
+                            <span id="voice-file-size" class="float-end"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button id="analyze-voice-btn" class="btn btn-primary" disabled>
+                            <i class="bi bi-play-circle"></i>
+                            开始分析语音
+                        </button>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" value="" id="use-saved-scales-for-voice">
+                            <label class="form-check-label" for="use-saved-scales-for-voice">
+                                使用已保存的量表数据（如果有）
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div id="voice-preview" class="d-flex align-items-center justify-content-center video-preview bg-light">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-mic" style="font-size: 3rem;"></i>
+                            <p>语音预览区域</p>
+                            <audio id="audio-player" controls style="display: none;"></audio>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="voice-analysis-progress" style="display: none;">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h5>正在分析语音特征...</h5>
+                            <div class="progress mb-2">
+                                <div id="voice-progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-muted mb-0" id="voice-progress-text">准备中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 螺旋图分析部分 -->
+        <section id="spiral-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-diagram-3"></i>
+                螺旋图分析
+            </h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area" id="spiral-upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽螺旋图图像到此处或点击上传</h4>
+                        <p class="text-muted">支持 JPG, PNG, BMP 格式</p>
+                        <input type="file" id="spiral-image-input" accept="image/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="spiral-file-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="spiral-file-name"></span>
+                            <span id="spiral-file-size" class="float-end"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button id="analyze-spiral-btn" class="btn btn-primary" disabled>
+                            <i class="bi bi-play-circle"></i>
+                            开始分析螺旋图
+                        </button>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" value="" id="use-saved-scales-for-spiral">
+                            <label class="form-check-label" for="use-saved-scales-for-spiral">
+                                使用已保存的量表数据（如果有）
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <img id="spiral-preview" class="video-preview" style="display: none;">
+                    <div id="spiral-preview-placeholder" class="d-flex align-items-center justify-content-center video-preview bg-light">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-diagram-3" style="font-size: 3rem;"></i>
+                            <p>螺旋图预览区域</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="spiral-analysis-progress" style="display: none;">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h5>正在分析螺旋图...</h5>
+                            <div class="progress mb-2">
+                                <div id="spiral-progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-muted mb-0" id="spiral-progress-text">准备中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 多模态融合分析部分 -->
+        <section id="fusion-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-layers"></i>
+                多模态融合分析
+            </h2>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>功能说明：</strong> 本功能支持多种融合模式，可结合手部、步态、螺旋图和语音特征进行综合分析，提高诊断准确性。
+            </div>
+
+            <!-- 融合模式选择 -->
+            <div class="mb-4">
+                <h5>选择融合模式：</h5>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="fusion-mode" id="fusion-mode-basic" value="basic" checked>
+                    <label class="form-check-label" for="fusion-mode-basic">
+                        <strong>基础融合</strong> - 手部 + 步态
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="fusion-mode" id="fusion-mode-ultimate" value="ultimate">
+                    <label class="form-check-label" for="fusion-mode-ultimate">
+                        <strong>全模态融合</strong> - 手部 + 步态 + 螺旋图 (推荐)
+                    </label>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area" id="fusion-upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽视频文件到此处或点击上传</h4>
+                        <p class="text-muted">支持 MP4, AVI, MOV 格式 (用于手部和步态分析)</p>
+                        <input type="file" id="fusion-video-input" accept="video/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="fusion-video-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="fusion-video-name"></span>
+                            <span id="fusion-video-size" class="float-end"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6" id="fusion-image-section" style="display: none;">
+                    <div class="upload-area" id="fusion-image-upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽螺旋图图像到此处或点击上传</h4>
+                        <p class="text-muted">支持 JPG, PNG, BMP 格式 (全模态融合需要)</p>
+                        <input type="file" id="fusion-image-input" accept="image/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="fusion-image-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="fusion-image-name"></span>
+                            <span id="fusion-image-size" class="float-end"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 可选语音上传 -->
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="include-voice-in-fusion">
+                        <label class="form-check-label" for="include-voice-in-fusion">
+                            <strong>可选：</strong> 上传语音文件进行软门限融合分析
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3" id="fusion-voice-section" style="display: none;">
+                <div class="col-12">
+                    <div class="upload-area" id="fusion-voice-upload-area">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <h4>拖拽语音文件到此处或点击上传</h4>
+                        <p class="text-muted">支持 WAV, MP3, FLAC, M4A 格式</p>
+                        <input type="file" id="fusion-voice-input" accept="audio/*" style="display: none;">
+                    </div>
+
+                    <div class="mt-3" id="fusion-voice-info" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span id="fusion-voice-name"></span>
+                            <span id="fusion-voice-size" class="float-end"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+                <button id="analyze-fusion-btn" class="btn btn-primary" disabled>
+                    <i class="bi bi-play-circle"></i>
+                    开始融合分析
+                </button>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="" id="use-saved-scales-for-fusion">
+                    <label class="form-check-label" for="use-saved-scales-for-fusion">
+                        使用已保存的量表数据（如果有）
+                    </label>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="fusion-analysis-progress" style="display: none;">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h5>正在进行融合分析...</h5>
+                            <div class="progress mb-2">
+                                <div id="fusion-progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-muted mb-0" id="fusion-progress-text">准备中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PD量表部分 -->
+        <section id="scale-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-clipboard-check"></i>
+                帕金森病量表评估
+            </h2>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                请根据您的实际情况填写以下量表，这些信息将帮助我们更准确地评估帕金森病风险。您可以随时保存填写进度，稍后继续填写。
+            </div>
+
+            <div class="weight-display">
+                <strong>权重说明：</strong> 视频分析权重 50%，量表评估权重 20%，步态分析权重 50%，语音分析权重 50%
+            </div>
+
+            <!-- 量表状态摘要 -->
+            <div class="scale-summary">
+                <div class="scale-summary-title">量表填写状态</div>
+                <div class="scale-summary-content">
+                    <div class="scale-summary-status">
+                        <span id="scale-status-text">尚未开始填写</span>
+                    </div>
+                    <div class="scale-summary-actions">
+                        <button id="save-scales-btn" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-save"></i>
+                            保存进度
+                        </button>
+                        <button id="clear-scales-btn" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                            清除数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 量表标签页 -->
+            <ul class="nav nav-tabs scale-tabs" id="scale-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="updrs-tab" data-bs-toggle="tab" data-bs-target="#updrs" type="button" role="tab">UPDRS量表</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="moca-tab" data-bs-toggle="tab" data-bs-target="#moca" type="button" role="tab">MoCA量表</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="beck-tab" data-bs-toggle="tab" data-bs-target="#beck" type="button" role="tab">贝克抑郁量表</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="scale-tab-content">
+                <!-- UPDRS量表 -->
+                <div class="tab-pane fade show active" id="updrs" role="tabpanel">
+                    <div class="scale-item">
+                        <h5>统一帕金森病评定量表 (UPDRS)</h5>
+                        
+                        <!-- 评分标准 -->
+                        <div class="scoring-criteria">
+                            <h6>评分标准</h6>
+                            <div class="score-item">
+                                <div class="score-range">0-2分</div>
+                                <div class="score-description">
+                                    正常：无帕金森病症状
+                                    <span class="risk-badge risk-normal">正常</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">3-5分</div>
+                                <div class="score-description">
+                                    轻微症状：可能有早期帕金森病迹象
+                                    <span class="risk-badge risk-low">低风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">6-10分</div>
+                                <div class="score-description">
+                                    轻度症状：对日常生活有轻微影响
+                                    <span class="risk-badge risk-mild">轻度风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">11-15分</div>
+                                <div class="score-description">
+                                    中度症状：对日常生活有明显影响
+                                    <span class="risk-badge risk-medium">中度风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">16-20分</div>
+                                <div class="score-description">
+                                    重度症状：严重影响日常生活，需要帮助
+                                    <span class="risk-badge risk-high">高风险</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 问题 -->
+                        <div class="scale-question">1. 您在说话时是否出现声音单调或含糊不清？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_1" id="updrs_1_0" value="0">
+                                <label class="form-check-label" for="updrs_1_0">0-正常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_1" id="updrs_1_1" value="1">
+                                <label class="form-check-label" for="updrs_1_1">1-轻微</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_1" id="updrs_1_2" value="2">
+                                <label class="form-check-label" for="updrs_1_2">2-中度</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_1" id="updrs_1_3" value="3">
+                                <label class="form-check-label" for="updrs_1_3">3-重度</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_1" id="updrs_1_4" value="4">
+                                <label class="form-check-label" for="updrs_1_4">4-极重度</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">2. 您在吞咽液体或食物时是否有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_2" id="updrs_2_0" value="0">
+                                <label class="form-check-label" for="updrs_2_0">0-正常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_2" id="updrs_2_1" value="1">
+                                <label class="form-check-label" for="updrs_2_1">1-轻微</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_2" id="updrs_2_2" value="2">
+                                <label class="form-check-label" for="updrs_2_2">2-中度</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_2" id="updrs_2_3" value="3">
+                                <label class="form-check-label" for="updrs_2_3">3-重度</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_2" id="updrs_2_4" value="4">
+                                <label class="form-check-label" for="updrs_2_4">4-极重度</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">3. 您在吃饭时是否需要帮助？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_3" id="updrs_3_0" value="0">
+                                <label class="form-check-label" for="updrs_3_0">0-完全独立</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_3" id="updrs_3_1" value="1">
+                                <label class="form-check-label" for="updrs_3_1">1-有些慢，但不需要帮助</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_3" id="updrs_3_2" value="2">
+                                <label class="form-check-label" for="updrs_3_2">2-需要帮助切食物或准备食物</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_3" id="updrs_3_3" value="3">
+                                <label class="form-check-label" for="updrs_3_3">3-需要喂食</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_3" id="updrs_3_4" value="4">
+                                <label class="form-check-label" for="updrs_3_4">4-需要鼻饲</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">4. 您在穿衣时是否有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_4" id="updrs_4_0" value="0">
+                                <label class="form-check-label" for="updrs_4_0">0-正常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_4" id="updrs_4_1" value="1">
+                                <label class="form-check-label" for="updrs_4_1">1-比以前慢，不需要帮助</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_4" id="updrs_4_2" value="2">
+                                <label class="form-check-label" for="updrs_4_2">2-需要帮助，但能自己做大部分</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_4" id="updrs_4_3" value="3">
+                                <label class="form-check-label" for="updrs_4_3">3-需要大量帮助</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_4" id="updrs_4_4" value="4">
+                                <label class="form-check-label" for="updrs_4_4">4-完全依赖</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">5. 您的个人卫生（洗澡、洗漱）是否有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_5" id="updrs_5_0" value="0">
+                                <label class="form-check-label" for="updrs_5_0">0-正常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_5" id="updrs_5_1" value="1">
+                                <label class="form-check-label" for="updrs_5_1">1-比以前慢，不需要帮助</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_5" id="updrs_5_2" value="2">
+                                <label class="form-check-label" for="updrs_5_2">2-需要帮助，但能自己做大部分</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_5" id="updrs_5_3" value="3">
+                                <label class="form-check-label" for="updrs_5_3">3-需要大量帮助</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="updrs_5" id="updrs_5_4" value="4">
+                                <label class="form-check-label" for="updrs_5_4">4-完全依赖</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-score-display" id="updrs_total_score">总分: 0</div>
+                        <div class="scale-progress">
+                            <div class="progress">
+                                <div class="progress-bar" id="updrs_progress" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- MoCA量表 -->
+                <div class="tab-pane fade" id="moca" role="tabpanel">
+                    <div class="scale-item">
+                        <h5>蒙特利尔认知评估量表</h5>
+                        
+                        <!-- 评分标准 -->
+                        <div class="scoring-criteria">
+                            <h6>评分标准</h6>
+                            <div class="score-item">
+                                <div class="score-range">17-20分</div>
+                                <div class="score-description">
+                                    认知功能正常
+                                    <span class="risk-badge risk-normal">正常</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">14-16分</div>
+                                <div class="score-description">
+                                    轻度认知障碍，可能影响复杂任务
+                                    <span class="risk-badge risk-low">低风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">11-13分</div>
+                                <div class="score-description">
+                                    中度认知障碍，影响日常生活
+                                    <span class="risk-badge risk-medium">中度风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">8-10分</div>
+                                <div class="score-description">
+                                    重度认知障碍，需要大量帮助
+                                    <span class="risk-badge risk-high">高风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">0-7分</div>
+                                <div class="score-description">
+                                    极重度认知障碍，完全依赖他人
+                                    <span class="risk-badge risk-extreme">极高风险</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 问题 -->
+                        <div class="scale-question">1. 您是否经常忘记最近发生的事情？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_1" id="moca_1_0" value="0">
+                                <label class="form-check-label" for="moca_1_0">0-从不</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_1" id="moca_1_1" value="1">
+                                <label class="form-check-label" for="moca_1_1">1-偶尔</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_1" id="moca_1_2" value="2">
+                                <label class="form-check-label" for="moca_1_2">2-有时</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_1" id="moca_1_3" value="3">
+                                <label class="form-check-label" for="moca_1_3">3-经常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_1" id="moca_1_4" value="4">
+                                <label class="form-check-label" for="moca_1_4">4-总是</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">2. 您是否在找词时有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_2" id="moca_2_0" value="0">
+                                <label class="form-check-label" for="moca_2_0">0-从不</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_2" id="moca_2_1" value="1">
+                                <label class="form-check-label" for="moca_2_1">1-偶尔</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_2" id="moca_2_2" value="2">
+                                <label class="form-check-label" for="moca_2_2">2-有时</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_2" id="moca_2_3" value="3">
+                                <label class="form-check-label" for="moca_2_3">3-经常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_2" id="moca_2_4" value="4">
+                                <label class="form-check-label" for="moca_2_4">4-总是</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">3. 您是否在集中注意力时有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_3" id="moca_3_0" value="0">
+                                <label class="form-check-label" for="moca_3_0">0-从不</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_3" id="moca_3_1" value="1">
+                                <label class="form-check-label" for="moca_3_1">1-偶尔</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_3" id="moca_3_2" value="2">
+                                <label class="form-check-label" for="moca_3_2">2-有时</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_3" id="moca_3_3" value="3">
+                                <label class="form-check-label" for="moca_3_3">3-经常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_3" id="moca_3_4" value="4">
+                                <label class="form-check-label" for="moca_3_4">4-总是</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">4. 您是否在执行日常任务时有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_4" id="moca_4_0" value="0">
+                                <label class="form-check-label" for="moca_4_0">0-从不</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_4" id="moca_4_1" value="1">
+                                <label class="form-check-label" for="moca_4_1">1-偶尔</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_4" id="moca_4_2" value="2">
+                                <label class="form-check-label" for="moca_4_2">2-有时</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_4" id="moca_4_3" value="3">
+                                <label class="form-check-label" for="moca_4_3">3-经常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_4" id="moca_4_4" value="4">
+                                <label class="form-check-label" for="moca_4_4">4-总是</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">5. 您是否在时间或地点定向上有困难？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_5" id="moca_5_0" value="0">
+                                <label class="form-check-label" for="moca_5_0">0-从不</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_5" id="moca_5_1" value="1">
+                                <label class="form-check-label" for="moca_5_1">1-偶尔</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_5" id="moca_5_2" value="2">
+                                <label class="form-check-label" for="moca_5_2">2-有时</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_5" id="moca_5_3" value="3">
+                                <label class="form-check-label" for="moca_5_3">3-经常</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="moca_5" id="moca_5_4" value="4">
+                                <label class="form-check-label" for="moca_5_4">4-总是</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-score-display" id="moca_total_score">总分: 0</div>
+                        <div class="scale-progress">
+                            <div class="progress">
+                                <div class="progress-bar" id="moca_progress" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 贝克抑郁量表 -->
+                <div class="tab-pane fade" id="beck" role="tabpanel">
+                    <div class="scale-item">
+                        <h5>贝克抑郁量表 (BDI)</h5>
+                        
+                        <!-- 评分标准 -->
+                        <div class="scoring-criteria">
+                            <h6>评分标准</h6>
+                            <div class="score-item">
+                                <div class="score-range">0-3分</div>
+                                <div class="score-description">
+                                    无抑郁或极轻微抑郁
+                                    <span class="risk-badge risk-normal">正常</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">4-6分</div>
+                                <div class="score-description">
+                                    轻度抑郁情绪
+                                    <span class="risk-badge risk-low">低风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">7-10分</div>
+                                <div class="score-description">
+                                    中度抑郁，需要关注
+                                    <span class="risk-badge risk-medium">中度风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">11-13分</div>
+                                <div class="score-description">
+                                    重度抑郁，建议咨询专业医生
+                                    <span class="risk-badge risk-high">高风险</span>
+                                </div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-range">14-15分</div>
+                                <div class="score-description">
+                                    极重度抑郁，需要立即就医
+                                    <span class="risk-badge risk-extreme">极高风险</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 问题 -->
+                        <div class="scale-question">1. 您是否感到悲伤？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_1" id="beck_1_0" value="0">
+                                <label class="form-check-label" for="beck_1_0">0-不感到悲伤</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_1" id="beck_1_1" value="1">
+                                <label class="form-check-label" for="beck_1_1">1-感到悲伤</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_1" id="beck_1_2" value="2">
+                                <label class="form-check-label" for="beck_1_2">2-总是感到悲伤</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_1" id="beck_1_3" value="3">
+                                <label class="form-check-label" for="beck_1_3">3-非常悲伤以至于无法忍受</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">2. 您是否对未来感到悲观？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_2" id="beck_2_0" value="0">
+                                <label class="form-check-label" for="beck_2_0">0-对未来不悲观</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_2" id="beck_2_1" value="1">
+                                <label class="form-check-label" for="beck_2_1">1-对未来有些悲观</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_2" id="beck_2_2" value="2">
+                                <label class="form-check-label" for="beck_2_2">2-对未来很悲观</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_2" id="beck_2_3" value="3">
+                                <label class="form-check-label" for="beck_2_3">3-对未来极其悲观</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">3. 您是否觉得自己是失败者？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_3" id="beck_3_0" value="0">
+                                <label class="form-check-label" for="beck_3_0">0-不觉得自己是失败者</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_3" id="beck_3_1" value="1">
+                                <label class="form-check-label" for="beck_3_1">1-觉得自己是失败者</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_3" id="beck_3_2" value="2">
+                                <label class="form-check-label" for="beck_3_2">2-觉得自己是完全失败者</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_3" id="beck_3_3" value="3">
+                                <label class="form-check-label" for="beck_3_3">3-觉得自己是彻底的失败者</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">4. 您是否对生活失去乐趣？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_4" id="beck_4_0" value="0">
+                                <label class="form-check-label" for="beck_4_0">0-对生活有乐趣</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_4" id="beck_4_1" value="1">
+                                <label class="form-check-label" for="beck_4_1">1-对生活乐趣减少</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_4" id="beck_4_2" value="2">
+                                <label class="form-check-label" for="beck_4_2">2-对生活几乎没有乐趣</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_4" id="beck_4_3" value="3">
+                                <label class="form-check-label" for="beck_4_3">3-对生活完全没有乐趣</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-question">5. 您是否感到内疚？</div>
+                        <div class="scale-options">
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_5" id="beck_5_0" value="0">
+                                <label class="form-check-label" for="beck_5_0">0-不感到内疚</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_5" id="beck_5_1" value="1">
+                                <label class="form-check-label" for="beck_5_1">1-有时感到内疚</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_5" id="beck_5_2" value="2">
+                                <label class="form-check-label" for="beck_5_2">2-经常感到内疚</label>
+                            </div>
+                            <div class="form-check scale-option">
+                                <input class="form-check-input" type="radio" name="beck_5" id="beck_5_3" value="3">
+                                <label class="form-check-label" for="beck_5_3">3-总是感到内疚</label>
+                            </div>
+                        </div>
+                        
+                        <div class="scale-score-display" id="beck_total_score">总分: 0</div>
+                        <div class="scale-progress">
+                            <div class="progress">
+                                <div class="progress-bar" id="beck_progress" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实时检测部分 -->
+        <section id="camera-section" class="section-card">
+            <h2 class="section-title">
+                <i class="bi bi-camera-video"></i>
+                实时检测
+            </h2>
+
+            <div class="camera-container">
+                <div class="camera-view">
+                    <video id="camera-feed" autoplay playsinline></video>
+                    <div id="camera-placeholder" class="camera-placeholder">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-camera" style="font-size: 3rem;"></i>
+                            <p>摄像头预览区域</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 温馨提示 -->
+                <div class="camera-instructions" id="camera-instructions">
+                    <h5><i class="bi bi-info-circle"></i> 温馨提示</h5>
+                    <p><i class="bi bi-hand-index"></i> 双手前平举并尽量保持静止，确保双手在摄像头可见范围内</p>
+                </div>
+
+                <div class="camera-controls">
+                    <button id="start-camera-btn" class="btn btn-primary">
+                        <i class="bi bi-camera-video"></i>
+                        启动摄像头
+                    </button>
+                    <button id="stop-camera-btn" class="btn btn-secondary" disabled>
+                        <i class="bi bi-camera-video-off"></i>
+                        关闭摄像头
+                    </button>
+                    <button id="start-detection-btn" class="btn btn-success" disabled>
+                        <i class="bi bi-play-circle"></i>
+                        开始检测
+                    </button>
+                    <button id="stop-detection-btn" class="btn btn-danger" disabled>
+                        <i class="bi bi-stop-circle"></i>
+                        停止检测
+                    </button>
+                </div>
+
+                <div class="mt-3">
+                    <label for="detection-duration" class="form-label">检测时长（秒）</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="detection-duration" value="30" min="10" max="60">
+                        <button class="btn btn-outline-secondary" type="button" id="duration-decrease">-</button>
+                        <button class="btn btn-outline-secondary" type="button" id="duration-increase">+</button>
+                    </div>
+                </div>
+
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="" id="use-scales-in-detection">
+                    <label class="form-check-label" for="use-scales-in-detection">
+                        使用已保存的量表数据进行综合分析
+                    </label>
+                </div>
+
+                <div class="mt-3" id="detection-countdown" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="bi bi-hourglass-split"></i>
+                        检测剩余时间: <span id="countdown-timer">30</span> 秒
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 结果展示部分 -->
+        <section id="results-section" class="section-card" style="display: none;">
+            <h2 class="section-title">
+                <i class="bi bi-graph-up"></i>
+                分析结果
+            </h2>
+
+            <ul class="nav nav-pills mb-4" id="result-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="summary-tab" data-bs-toggle="pill" data-bs-target="#summary" type="button" role="tab">结果概览</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="features-tab" data-bs-toggle="pill" data-bs-target="#features" type="button" role="tab">手部特征</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gait-features-tab" data-bs-toggle="pill" data-bs-target="#gait-features" type="button" role="tab">步态特征</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="voice-features-tab" data-bs-toggle="pill" data-bs-target="#voice-features" type="button" role="tab">语音特征</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="spiral-features-tab" data-bs-toggle="pill" data-bs-target="#spiral-features" type="button" role="tab">螺旋图特征</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="charts-tab" data-bs-toggle="pill" data-bs-target="#charts" type="button" role="tab">图表展示</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="result-tab-content">
+                <!-- 结果概览 -->
+                <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                    <div id="result-card" class="result-card">
+                        <h4 class="mb-3">帕金森病风险评估结果</h4>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>帕金森病概率</h5>
+                                <div class="probability-bar">
+                                    <div id="parkinsons-prob" class="probability-fill probability-parkinsons" style="width: 0%;">0%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>健康概率</h5>
+                                <div class="probability-bar">
+                                    <div id="healthy-prob" class="probability-fill probability-healthy" style="width: 0%;">0%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">风险等级</h6>
+                                        <h4 id="risk-level" class="card-title">-</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2 text-muted">建议</h6>
+                                        <p id="recommendation" class="card-text">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 结果分解 -->
+                        <div class="result-breakdown">
+                            <h5>结果分解</h5>
+                            <div class="weight-bar">
+                                <div id="video-weight" class="weight-segment video-segment" style="width: 70%;">70%</div>
+                                <div id="scale-weight" class="weight-segment scale-segment" style="width: 30%;">30%</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted">视频分析: <span id="video-prob-text">-</span></small>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <small class="text-muted">量表评估: <span id="scale-prob-text">-</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 手部特征分析 -->
+                <div class="tab-pane fade" id="features" role="tabpanel">
+                    <h4 class="mb-3">手部特征分析</h4>
+                    <div id="features-list">
+                        <!-- 特征列表将在这里动态生成 -->
+                    </div>
+
+                    <!-- 量表评分详情 -->
+                    <div id="scale-scores" class="mt-4" style="display: none;">
+                        <h4 class="mb-3">量表评分详情</h4>
+                        <div id="scale-scores-container">
+                            <!-- 量表评分将在这里动态生成 -->
+                        </div>
+                    </div>
+
+                    <div class="model-info">
+                        <h5>手部分析模型信息</h5>
+                        <p>本系统使用集成学习模型进行分析，基于以下手部特征：</p>
+                        <ul class="mb-0">
+                            <li>震颤频率与幅度</li>
+                            <li>手指敲击速度</li>
+                            <li>握力变化</li>
+                            <li>运动迟缓评分</li>
+                            <li>僵硬程度评分</li>
+                            <li>静止性震颤持续时间</li>
+                            <li>迁移学习特征 (ResNet18)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 步态特征内容 -->
+                <div class="tab-pane fade" id="gait-features" role="tabpanel">
+                    <h4 class="mb-3">步态特征分析</h4>
+                    <div id="gait-features-list">
+                        <!-- 步态特征列表将在这里动态生成 -->
+                    </div>
+                    
+                    <div class="model-info">
+                        <h5>步态分析模型信息</h5>
+                        <p>本系统使用集成学习模型进行分析，基于以下步态特征：</p>
+                        <ul class="mb-0">
+                            <li>步幅长度与变异性</li>
+                            <li>步宽与变异性</li>
+                            <li>步时与变异性</li>
+                            <li>行走速度</li>
+                            <li>步频</li>
+                            <li>手臂摆动幅度</li>
+                            <li>躯干摇摆幅度</li>
+                            <li>脚尖离地和脚跟着地角度</li>
+                            <li>迁移学习特征 (ResNet18)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 语音特征内容 -->
+                <div class="tab-pane fade" id="voice-features" role="tabpanel">
+                    <h4 class="mb-3">语音特征分析</h4>
+                    <div id="voice-features-list">
+                        <!-- 语音特征列表将在这里动态生成 -->
+                    </div>
+
+                    <div class="model-info">
+                        <h5>语音分析模型信息</h5>
+                        <p>本系统使用集成学习模型进行分析，基于以下语音特征：</p>
+                        <ul class="mb-0">
+                            <li>基频(F0)统计特征</li>
+                            <li>jitter 和 shimmer</li>
+                            <li>MFCC特征</li>
+                            <li>色度特征</li>
+                            <li>光谱对比度</li>
+                            <li>光谱质心</li>
+                            <li>零交叉率</li>
+                            <li>语音强度变化</li>
+                            <li>语音速率</li>
+                            <li>迁移学习特征 (Mel-Spectrogram, Tonnetz)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 螺旋图特征内容 -->
+                <div class="tab-pane fade" id="spiral-features" role="tabpanel">
+                    <h4 class="mb-3">螺旋图特征分析</h4>
+                    <div id="spiral-features-list">
+                        <!-- 螺旋图特征列表将在这里动态生成 -->
+                    </div>
+
+                    <div class="model-info">
+                        <h5>螺旋图分析模型信息</h5>
+                        <p>本系统使用集成学习模型进行分析，基于以下螺旋图特征：</p>
+                        <ul class="mb-0">
+                            <li>线条平滑度</li>
+                            <li>线条弯曲度</li>
+                            <li>线条不规则性</li>
+                            <li>笔触稳定性</li>
+                            <li>闭合程度</li>
+                            <li>线条宽度变化</li>
+                            <li>书写速度变化</li>
+                            <li>震颤指标</li>
+                            <li>迁移学习特征 (ResNet18)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 图表展示 -->
+                <div class="tab-pane fade" id="charts" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="feature-chart-container">
+                                <canvas id="feature-radar-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-chart-container">
+                                <canvas id="feature-bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">处理中，请稍候...</p>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container">
+        <div id="notification-toast" class="toast custom-toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong class="me-auto">系统通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toast-message">
+                <!-- 通知消息将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 调试面板 -->
+    <button id="debug-toggle" class="btn btn-sm btn-outline-secondary debug-toggle">
+        <i class="bi bi-bug"></i> 调试
+    </button>
+    <div id="debug-panel" class="debug-panel">
+        <div id="debug-content"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let selectedFile = null;
+        let selectedGaitFile = null;
+        let selectedVoiceFile = null;
+        let selectedSpiralFile = null;
+        let selectedFusionVideoFile = null;
+        let selectedFusionImageFile = null;
+        let selectedFusionVoiceFile = null;
+        let mediaStream = null;
+        let detectionTimer = null;
+        let countdownInterval = null;
+        let radarChart = null;
+        let barChart = null;
+        let socket = null;
+        let isConnected = false;
+        let savedScaleResponses = null;
+        let debugMode = false;
+        let currentAbortController = null; // 用于取消进行中的请求
+
+        // API基础URL
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        // DOM 元素
+        const uploadArea = document.getElementById('upload-area');
+        const videoInput = document.getElementById('video-input');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const useSavedScalesCheckbox = document.getElementById('use-saved-scales');
+        const videoPreview = document.getElementById('video-preview');
+        const videoPlaceholder = document.getElementById('video-placeholder');
+        const analysisProgress = document.getElementById('analysis-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        // 步态相关DOM元素
+        const gaitUploadArea = document.getElementById('gait-upload-area');
+        const gaitVideoInput = document.getElementById('gait-video-input');
+        const gaitFileInfo = document.getElementById('gait-file-info');
+        const gaitFileName = document.getElementById('gait-file-name');
+        const gaitFileSize = document.getElementById('gait-file-size');
+        const analyzeGaitBtn = document.getElementById('analyze-gait-btn');
+        const useSavedScalesForGaitCheckbox = document.getElementById('use-saved-scales-for-gait');
+        const gaitVideoPreview = document.getElementById('gait-video-preview');
+        const gaitVideoPlaceholder = document.getElementById('gait-video-placeholder');
+        const gaitAnalysisProgress = document.getElementById('gait-analysis-progress');
+        const gaitProgressBar = document.getElementById('gait-progress-bar');
+        const gaitProgressText = document.getElementById('gait-progress-text');
+        const gaitFeaturesList = document.getElementById('gait-features-list');
+
+        // 语音相关DOM元素
+        const voiceUploadArea = document.getElementById('voice-upload-area');
+        const voiceInput = document.getElementById('voice-input');
+        const voiceFileInfo = document.getElementById('voice-file-info');
+        const voiceFileName = document.getElementById('voice-file-name');
+        const voiceFileSize = document.getElementById('voice-file-size');
+        const analyzeVoiceBtn = document.getElementById('analyze-voice-btn');
+        const useSavedScalesForVoiceCheckbox = document.getElementById('use-saved-scales-for-voice');
+        const voicePreview = document.getElementById('voice-preview');
+        const audioPlayer = document.getElementById('audio-player');
+        const voiceAnalysisProgress = document.getElementById('voice-analysis-progress');
+        const voiceProgressBar = document.getElementById('voice-progress-bar');
+        const voiceProgressText = document.getElementById('voice-progress-text');
+        const voiceFeaturesList = document.getElementById('voice-features-list');
+
+        // 螺旋图相关DOM元素
+        const spiralUploadArea = document.getElementById('spiral-upload-area');
+        const spiralImageInput = document.getElementById('spiral-image-input');
+        const spiralFileInfo = document.getElementById('spiral-file-info');
+        const spiralFileName = document.getElementById('spiral-file-name');
+        const spiralFileSize = document.getElementById('spiral-file-size');
+        const analyzeSpiralBtn = document.getElementById('analyze-spiral-btn');
+        const useSavedScalesForSpiralCheckbox = document.getElementById('use-saved-scales-for-spiral');
+        const spiralPreview = document.getElementById('spiral-preview');
+        const spiralPreviewPlaceholder = document.getElementById('spiral-preview-placeholder');
+        const spiralAnalysisProgress = document.getElementById('spiral-analysis-progress');
+        const spiralProgressBar = document.getElementById('spiral-progress-bar');
+        const spiralProgressText = document.getElementById('spiral-progress-text');
+        const spiralFeaturesList = document.getElementById('spiral-features-list');
+
+        // 融合分析相关DOM元素
+        const fusionUploadArea = document.getElementById('fusion-upload-area');
+        const fusionVideoInput = document.getElementById('fusion-video-input');
+        const fusionVideoInfo = document.getElementById('fusion-video-info');
+        const fusionVideoName = document.getElementById('fusion-video-name');
+        const fusionVideoSize = document.getElementById('fusion-video-size');
+        const fusionImageUploadArea = document.getElementById('fusion-image-upload-area');
+        const fusionImageInput = document.getElementById('fusion-image-input');
+        const fusionImageInfo = document.getElementById('fusion-image-info');
+        const fusionImageName = document.getElementById('fusion-image-name');
+        const fusionImageSize = document.getElementById('fusion-image-size');
+        const fusionImageSection = document.getElementById('fusion-image-section');
+        const fusionVoiceUploadArea = document.getElementById('fusion-voice-upload-area');
+        const fusionVoiceInput = document.getElementById('fusion-voice-input');
+        const fusionVoiceInfo = document.getElementById('fusion-voice-info');
+        const fusionVoiceName = document.getElementById('fusion-voice-name');
+        const fusionVoiceSize = document.getElementById('fusion-voice-size');
+        const fusionVoiceSection = document.getElementById('fusion-voice-section');
+        const includeVoiceInFusionCheckbox = document.getElementById('include-voice-in-fusion');
+        const analyzeFusionBtn = document.getElementById('analyze-fusion-btn');
+        const useSavedScalesForFusionCheckbox = document.getElementById('use-saved-scales-for-fusion');
+        const fusionAnalysisProgress = document.getElementById('fusion-analysis-progress');
+        const fusionProgressBar = document.getElementById('fusion-progress-bar');
+        const fusionProgressText = document.getElementById('fusion-progress-text');
+
+        // 量表相关元素
+        const saveScalesBtn = document.getElementById('save-scales-btn');
+        const clearScalesBtn = document.getElementById('clear-scales-btn');
+        const scaleStatusText = document.getElementById('scale-status-text');
+
+        // 摄像头相关元素
+        const startCameraBtn = document.getElementById('start-camera-btn');
+        const stopCameraBtn = document.getElementById('stop-camera-btn');
+        const startDetectionBtn = document.getElementById('start-detection-btn');
+        const stopDetectionBtn = document.getElementById('stop-detection-btn');
+        const cameraFeed = document.getElementById('camera-feed');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+        const cameraInstructions = document.getElementById('camera-instructions');
+        const detectionDurationInput = document.getElementById('detection-duration');
+        const durationDecrease = document.getElementById('duration-decrease');
+        const durationIncrease = document.getElementById('duration-increase');
+        const useScalesInDetectionCheckbox = document.getElementById('use-scales-in-detection');
+        const detectionCountdown = document.getElementById('detection-countdown');
+        const countdownTimer = document.getElementById('countdown-timer');
+
+        // 结果展示相关元素
+        const resultsSection = document.getElementById('results-section');
+        const resultCard = document.getElementById('result-card');
+        const parkinsonsProb = document.getElementById('parkinsons-prob');
+        const healthyProb = document.getElementById('healthy-prob');
+        const riskLevel = document.getElementById('risk-level');
+        const recommendation = document.getElementById('recommendation');
+        const featuresList = document.getElementById('features-list');
+        const videoProbText = document.getElementById('video-prob-text');
+        const scaleProbText = document.getElementById('scale-prob-text');
+        const scaleScoresSection = document.getElementById('scale-scores');
+        const scaleScoresContainer = document.getElementById('scale-scores-container');
+
+        // 连接状态相关元素
+        const connectionStatus = document.getElementById('connection-status');
+        const statusText = document.getElementById('status-text');
+
+        // 通知相关元素
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const notificationToast = document.getElementById('notification-toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        // 调试相关元素
+        const debugToggle = document.getElementById('debug-toggle');
+        const debugPanel = document.getElementById('debug-panel');
+        const debugContent = document.getElementById('debug-content');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化事件监听器
+            setupEventListeners();
+
+            // 初始化WebSocket连接
+            initSocketConnection();
+
+            // 检查模型状态
+            checkModelStatus();
+
+            // 加载已保存的量表数据
+            loadSavedScaleResponses();
+            
+            // 更新量表状态
+            updateScaleStatus();
+        });
+
+        // 调试函数
+        function debugLog(message) {
+            if (debugMode) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+                debugPanel.scrollTop = debugPanel.scrollHeight;
+            }
+            console.log(message);
+        }
+
+        // 初始化WebSocket连接
+        function initSocketConnection() {
+            try {
+                socket = io('http://localhost:5000');
+
+                socket.on('connect', function() {
+                    debugLog('已连接到服务器');
+                    updateConnectionStatus(true);
+                    isConnected = true;
+                });
+
+                socket.on('disconnect', function() {
+                    debugLog('与服务器断开连接');
+                    updateConnectionStatus(false);
+                    isConnected = false;
+                });
+
+                socket.on('status', function(data) {
+                    debugLog(`服务器状态: ${data.msg}`);
+                });
+
+                socket.on('countdown', function(data) {
+                    countdownTimer.textContent = data.time;
+                });
+
+                socket.on('detection_complete', function(result) {
+                    debugLog('收到实时检测结果');
+                    displayResults(result);
+                    resultsSection.style.display = 'block';
+                    resultsSection.scrollIntoView({ behavior: 'smooth' });
+                    showNotification('实时检测完成', 'success');
+
+                    // 重置UI状态
+                    detectionCountdown.style.display = 'none';
+                    startDetectionBtn.disabled = false;
+                    stopDetectionBtn.disabled = true;
+                });
+
+                socket.on('detection_error', function(data) {
+                    debugLog(`实时检测错误: ${data.error}`);
+                    showNotification(`实时检测失败: ${data.error}`, 'danger');
+
+                    // 重置UI状态
+                    detectionCountdown.style.display = 'none';
+                    startDetectionBtn.disabled = false;
+                    stopDetectionBtn.disabled = true;
+                });
+            } catch (e) {
+                debugLog('SocketIO 初始化失败，请检查后端是否开启SocketIO支持。');
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.className = 'connection-status status-connected';
+                statusText.textContent = '已连接';
+            } else {
+                connectionStatus.className = 'connection-status status-disconnected';
+                statusText.textContent = '未连接';
+            }
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 文件上传相关
+            uploadArea.addEventListener('click', () => videoInput.click());
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+            videoInput.addEventListener('change', handleFileSelect);
+            analyzeBtn.addEventListener('click', startAnalysis);
+            
+            // 步态文件上传相关
+            gaitUploadArea.addEventListener('click', () => gaitVideoInput.click());
+            gaitUploadArea.addEventListener('dragover', handleGaitDragOver);
+            gaitUploadArea.addEventListener('dragleave', handleGaitDragLeave);
+            gaitUploadArea.addEventListener('drop', handleGaitDrop);
+            gaitVideoInput.addEventListener('change', handleGaitFileSelect);
+            analyzeGaitBtn.addEventListener('click', startGaitAnalysis);
+
+            // 语音文件上传相关
+            voiceUploadArea.addEventListener('click', () => voiceInput.click());
+            voiceUploadArea.addEventListener('dragover', handleVoiceDragOver);
+            voiceUploadArea.addEventListener('dragleave', handleVoiceDragLeave);
+            voiceUploadArea.addEventListener('drop', handleVoiceDrop);
+            voiceInput.addEventListener('change', handleVoiceFileSelect);
+            analyzeVoiceBtn.addEventListener('click', startVoiceAnalysis);
+
+            // 螺旋图文件上传相关
+            spiralUploadArea.addEventListener('click', () => spiralImageInput.click());
+            spiralUploadArea.addEventListener('dragover', handleSpiralDragOver);
+            spiralUploadArea.addEventListener('dragleave', handleSpiralDragLeave);
+            spiralUploadArea.addEventListener('drop', handleSpiralDrop);
+            spiralImageInput.addEventListener('change', handleSpiralFileSelect);
+            analyzeSpiralBtn.addEventListener('click', startSpiralAnalysis);
+
+            // 融合分析相关
+            fusionUploadArea.addEventListener('click', () => fusionVideoInput.click());
+            fusionUploadArea.addEventListener('dragover', handleFusionVideoDragOver);
+            fusionUploadArea.addEventListener('dragleave', handleFusionVideoDragLeave);
+            fusionUploadArea.addEventListener('drop', handleFusionVideoDrop);
+            fusionVideoInput.addEventListener('change', handleFusionVideoFileSelect);
+
+            fusionImageUploadArea.addEventListener('click', () => fusionImageInput.click());
+            fusionImageUploadArea.addEventListener('dragover', handleFusionImageDragOver);
+            fusionImageUploadArea.addEventListener('dragleave', handleFusionImageDragLeave);
+            fusionImageUploadArea.addEventListener('drop', handleFusionImageDrop);
+            fusionImageInput.addEventListener('change', handleFusionImageFileSelect);
+
+            fusionVoiceUploadArea.addEventListener('click', () => fusionVoiceInput.click());
+            fusionVoiceUploadArea.addEventListener('dragover', handleFusionVoiceDragOver);
+            fusionVoiceUploadArea.addEventListener('dragleave', handleFusionVoiceDragLeave);
+            fusionVoiceUploadArea.addEventListener('drop', handleFusionVoiceDrop);
+            fusionVoiceInput.addEventListener('change', handleFusionVoiceFileSelect);
+
+            includeVoiceInFusionCheckbox.addEventListener('change', function() {
+                fusionVoiceSection.style.display = this.checked ? 'block' : 'none';
+            });
+
+            // 融合模式切换
+            document.querySelectorAll('input[name="fusion-mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    fusionImageSection.style.display = (this.value === 'ultimate') ? 'block' : 'none';
+                    updateFusionButtonState();
+                });
+            });
+
+            analyzeFusionBtn.addEventListener('click', startFusionAnalysis);
+
+            // 量表相关
+            saveScalesBtn.addEventListener('click', saveScaleResponses);
+            clearScalesBtn.addEventListener('click', clearScaleResponses);
+            
+            // 为所有量表选项添加事件监听器
+            document.querySelectorAll('input[type="radio"]').forEach(input => {
+                input.addEventListener('change', updateScaleStatus);
+            });
+
+            // 摄像头相关
+            startCameraBtn.addEventListener('click', startCamera);
+            stopCameraBtn.addEventListener('click', stopCamera);
+            startDetectionBtn.addEventListener('click', startDetection);
+            stopDetectionBtn.addEventListener('click', stopDetection);
+            durationDecrease.addEventListener('click', () => adjustDuration(-5));
+            durationIncrease.addEventListener('click', () => adjustDuration(5));
+
+            // 调试相关
+            debugToggle.addEventListener('click', () => {
+                debugMode = !debugMode;
+                debugPanel.style.display = debugMode ? 'block' : 'none';
+                if (debugMode) {
+                    debugLog('调试模式已开启');
+                }
+            });
+        }
+
+        // 文件拖拽处理
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        // 文件选择处理
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        // 文件处理
+        function handleFile(file) {
+            debugLog(`处理文件: ${file.name}, 大小: ${file.size} bytes`);
+            
+            // 检查文件类型
+            const validTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/quicktime'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(mp4|avi|mov)$/i)) {
+                showNotification('请选择有效的视频文件 (MP4, AVI, MOV)', 'danger');
+                return;
+            }
+
+            selectedFile = file;
+
+            // 显示文件信息
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+
+            // 启用分析按钮
+            analyzeBtn.disabled = false;
+
+            // 预览视频
+            const fileURL = URL.createObjectURL(file);
+            videoPreview.src = fileURL;
+            videoPreview.style.display = 'block';
+            videoPlaceholder.style.display = 'none';
+
+            showNotification('视频文件已加载，可以开始分析', 'success');
+        }
+
+        // 步态文件拖拽处理
+        function handleGaitDragOver(e) {
+            e.preventDefault();
+            gaitUploadArea.classList.add('dragover');
+        }
+
+        function handleGaitDragLeave(e) {
+            e.preventDefault();
+            gaitUploadArea.classList.remove('dragover');
+        }
+
+        function handleGaitDrop(e) {
+            e.preventDefault();
+            gaitUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleGaitFile(files[0]);
+            }
+        }
+
+        // 步态文件选择处理
+        function handleGaitFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleGaitFile(file);
+            }
+        }
+
+        // 步态文件处理
+        function handleGaitFile(file) {
+            debugLog(`处理步态文件: ${file.name}, 大小: ${file.size} bytes`);
+            
+            // 检查文件类型
+            const validTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/quicktime'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(mp4|avi|mov)$/i)) {
+                showNotification('请选择有效的视频文件 (MP4, AVI, MOV)', 'danger');
+                return;
+            }
+
+            selectedGaitFile = file;
+
+            // 显示文件信息
+            gaitFileName.textContent = file.name;
+            gaitFileSize.textContent = formatFileSize(file.size);
+            gaitFileInfo.style.display = 'block';
+
+            // 启用分析按钮
+            analyzeGaitBtn.disabled = false;
+
+            // 预览视频
+            const fileURL = URL.createObjectURL(file);
+            gaitVideoPreview.src = fileURL;
+            gaitVideoPreview.style.display = 'block';
+            gaitVideoPlaceholder.style.display = 'none';
+
+            showNotification('步态视频文件已加载，可以开始分析', 'success');
+        }
+
+        // 语音文件拖拽处理
+        function handleVoiceDragOver(e) {
+            e.preventDefault();
+            voiceUploadArea.classList.add('dragover');
+        }
+
+        function handleVoiceDragLeave(e) {
+            e.preventDefault();
+            voiceUploadArea.classList.remove('dragover');
+        }
+
+        function handleVoiceDrop(e) {
+            e.preventDefault();
+            voiceUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleVoiceFile(files[0]);
+            }
+        }
+
+        // 语音文件选择处理
+        function handleVoiceFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleVoiceFile(file);
+            }
+        }
+
+        // 语音文件处理
+        function handleVoiceFile(file) {
+            debugLog(`处理语音文件: ${file.name}, 大小: ${file.size} bytes`);
+            
+            // 检查文件类型
+            const validTypes = ['audio/wav', 'audio/mp3', 'audio/flac', 'audio/m4a'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|flac|m4a)$/i)) {
+                showNotification('请选择有效的音频文件 (WAV, MP3, FLAC, M4A)', 'danger');
+                return;
+            }
+
+            selectedVoiceFile = file;
+
+            // 显示文件信息
+            voiceFileName.textContent = file.name;
+            voiceFileSize.textContent = formatFileSize(file.size);
+            voiceFileInfo.style.display = 'block';
+
+            // 启用分析按钮
+            analyzeVoiceBtn.disabled = false;
+
+            // 预览音频
+            const fileURL = URL.createObjectURL(file);
+            audioPlayer.src = fileURL;
+            audioPlayer.style.display = 'block';
+
+            showNotification('语音文件已加载，可以开始分析', 'success');
+        }
+
+        // 螺旋图文件拖拽处理
+        function handleSpiralDragOver(e) {
+            e.preventDefault();
+            spiralUploadArea.classList.add('dragover');
+        }
+
+        function handleSpiralDragLeave(e) {
+            e.preventDefault();
+            spiralUploadArea.classList.remove('dragover');
+        }
+
+        function handleSpiralDrop(e) {
+            e.preventDefault();
+            spiralUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleSpiralFile(files[0]);
+            }
+        }
+
+        // 螺旋图文件选择处理
+        function handleSpiralFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleSpiralFile(file);
+            }
+        }
+
+        // 螺旋图文件处理
+        function handleSpiralFile(file) {
+            debugLog(`处理螺旋图文件: ${file.name}, 大小: ${file.size} bytes`);
+
+            // 检查文件类型
+            const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|bmp)$/i)) {
+                showNotification('请选择有效的图像文件 (JPG, PNG, BMP)', 'danger');
+                return;
+            }
+
+            selectedSpiralFile = file;
+
+            // 显示文件信息
+            spiralFileName.textContent = file.name;
+            spiralFileSize.textContent = formatFileSize(file.size);
+            spiralFileInfo.style.display = 'block';
+
+            // 启用分析按钮
+            analyzeSpiralBtn.disabled = false;
+
+            // 预览图像
+            const fileURL = URL.createObjectURL(file);
+            spiralPreview.src = fileURL;
+            spiralPreview.style.display = 'block';
+            spiralPreviewPlaceholder.style.display = 'none';
+
+            showNotification('螺旋图图像已加载，可以开始分析', 'success');
+        }
+
+        // 融合分析 - 视频文件处理
+        function handleFusionVideoDragOver(e) {
+            e.preventDefault();
+            fusionUploadArea.classList.add('dragover');
+        }
+
+        function handleFusionVideoDragLeave(e) {
+            e.preventDefault();
+            fusionUploadArea.classList.remove('dragover');
+        }
+
+        function handleFusionVideoDrop(e) {
+            e.preventDefault();
+            fusionUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFusionVideoFile(files[0]);
+            }
+        }
+
+        function handleFusionVideoFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFusionVideoFile(file);
+            }
+        }
+
+        function handleFusionVideoFile(file) {
+            debugLog(`处理融合分析视频文件: ${file.name}, 大小: ${file.size} bytes`);
+
+            const validTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/quicktime'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(mp4|avi|mov)$/i)) {
+                showNotification('请选择有效的视频文件 (MP4, AVI, MOV)', 'danger');
+                return;
+            }
+
+            selectedFusionVideoFile = file;
+            fusionVideoName.textContent = file.name;
+            fusionVideoSize.textContent = formatFileSize(file.size);
+            fusionVideoInfo.style.display = 'block';
+
+            updateFusionButtonState();
+            showNotification('视频文件已加载', 'success');
+        }
+
+        // 融合分析 - 图像文件处理
+        function handleFusionImageDragOver(e) {
+            e.preventDefault();
+            fusionImageUploadArea.classList.add('dragover');
+        }
+
+        function handleFusionImageDragLeave(e) {
+            e.preventDefault();
+            fusionImageUploadArea.classList.remove('dragover');
+        }
+
+        function handleFusionImageDrop(e) {
+            e.preventDefault();
+            fusionImageUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFusionImageFile(files[0]);
+            }
+        }
+
+        function handleFusionImageFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFusionImageFile(file);
+            }
+        }
+
+        function handleFusionImageFile(file) {
+            debugLog(`处理融合分析图像文件: ${file.name}, 大小: ${file.size} bytes`);
+
+            const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|bmp)$/i)) {
+                showNotification('请选择有效的图像文件 (JPG, PNG, BMP)', 'danger');
+                return;
+            }
+
+            selectedFusionImageFile = file;
+            fusionImageName.textContent = file.name;
+            fusionImageSize.textContent = formatFileSize(file.size);
+            fusionImageInfo.style.display = 'block';
+
+            updateFusionButtonState();
+            showNotification('螺旋图图像已加载', 'success');
+        }
+
+        // 融合分析 - 语音文件处理
+        function handleFusionVoiceDragOver(e) {
+            e.preventDefault();
+            fusionVoiceUploadArea.classList.add('dragover');
+        }
+
+        function handleFusionVoiceDragLeave(e) {
+            e.preventDefault();
+            fusionVoiceUploadArea.classList.remove('dragover');
+        }
+
+        function handleFusionVoiceDrop(e) {
+            e.preventDefault();
+            fusionVoiceUploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFusionVoiceFile(files[0]);
+            }
+        }
+
+        function handleFusionVoiceFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFusionVoiceFile(file);
+            }
+        }
+
+        function handleFusionVoiceFile(file) {
+            debugLog(`处理融合分析语音文件: ${file.name}, 大小: ${file.size} bytes`);
+
+            const validTypes = ['audio/wav', 'audio/mp3', 'audio/flac', 'audio/m4a'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|flac|m4a)$/i)) {
+                showNotification('请选择有效的音频文件 (WAV, MP3, FLAC, M4A)', 'danger');
+                return;
+            }
+
+            selectedFusionVoiceFile = file;
+            fusionVoiceName.textContent = file.name;
+            fusionVoiceSize.textContent = formatFileSize(file.size);
+            fusionVoiceInfo.style.display = 'block';
+
+            showNotification('语音文件已加载', 'success');
+        }
+
+        // 更新融合分析按钮状态
+        function updateFusionButtonState() {
+            const fusionMode = document.querySelector('input[name="fusion-mode"]:checked').value;
+            const hasVideo = selectedFusionVideoFile !== null;
+
+            if (fusionMode === 'basic') {
+                analyzeFusionBtn.disabled = !hasVideo;
+            } else {
+                const hasImage = selectedFusionImageFile !== null;
+                analyzeFusionBtn.disabled = !(hasVideo && hasImage);
+            }
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 检查模型状态
+        async function checkModelStatus() {
+            try {
+                debugLog('检查模型状态...');
+                const response = await fetch(`${API_BASE_URL}/model-status`);
+                const data = await response.json();
+
+                debugLog(`模型状态: 手部模型=${data.hand_model_loaded}, 手部标准化器=${data.hand_scaler_loaded}, 步态模型=${data.gait_model_loaded}, 步态标准化器=${data.gait_scaler_loaded}, 语音模型=${data.voice_model_loaded}, 语音标准化器=${data.voice_scaler_loaded}`);
+
+                if (!data.hand_model_loaded || !data.hand_scaler_loaded || !data.gait_model_loaded || !data.gait_scaler_loaded || !data.voice_model_loaded || !data.voice_scaler_loaded) {
+                    showNotification('模型未完全加载，某些功能可能不可用', 'warning');
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                debugLog(`检查模型状态失败: ${error.message}`);
+                showNotification('无法连接到后端服务', 'danger');
+                return false;
+            }
+        }
+
+        // 统一分析函数
+        async function startUnifiedAnalysis(options) {
+            const { file, fieldName, apiEndpoint, progressEl, progressBarEl, progressTextEl, analyzeBtnEl,
+                    progressSection, useScalesCheckbox, displayFn, successMsg, errorMsg, typeLabel } = options;
+
+            if (!file) {
+                showNotification(`请先选择${typeLabel}文件`, 'warning');
+                return;
+            }
+
+            const modelReady = await checkModelStatus();
+            if (!modelReady) return;
+
+            progressSection.style.display = 'block';
+            analyzeBtnEl.disabled = true;
+
+            let scaleResponses = null;
+            if (useScalesCheckbox.checked && savedScaleResponses) {
+                scaleResponses = savedScaleResponses;
+                debugLog(`${typeLabel}分析使用已保存的量表数据`);
+            }
+
+            // 取消之前的请求
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+
+            try {
+                const formData = new FormData();
+                formData.append(fieldName, file);
+                if (scaleResponses) formData.append('scale_responses', JSON.stringify(scaleResponses));
+
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 90) progress = 90;
+                    progressBarEl.style.width = `${progress}%`;
+                    progressBarEl.setAttribute('aria-valuenow', progress);
+                    progressBarEl.textContent = `${Math.round(progress)}%`;
+                    if (progress < 30) progressTextEl.textContent = `上传${typeLabel}文件...`;
+                    else if (progress < 60) progressTextEl.textContent = `分析${typeLabel}特征...`;
+                    else if (scaleResponses) progressTextEl.textContent = '分析量表数据...';
+                    else progressTextEl.textContent = '生成分析结果...';
+                }, 300);
+
+                debugLog(`发送${typeLabel}分析请求到后端...`);
+                const response = await fetch(`${API_BASE_URL}${apiEndpoint}`, {
+                    method: 'POST',
+                    body: formData,
+                    signal: currentAbortController.signal
+                });
+
+                clearInterval(progressInterval);
+
+                progressBarEl.style.width = '100%';
+                progressBarEl.setAttribute('aria-valuenow', 100);
+                progressBarEl.textContent = '100%';
+                progressTextEl.textContent = '处理完成';
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '服务器错误');
+                }
+
+                const result = await response.json();
+                debugLog(`收到${typeLabel}分析结果: ${JSON.stringify(result)}`);
+
+                displayFn(result);
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                showNotification(successMsg, 'success');
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    debugLog(`${typeLabel}分析已取消`);
+                    showNotification('分析已取消', 'info');
+                } else {
+                    debugLog(`${typeLabel}分析失败: ${error.message}`);
+                    showNotification(`${errorMsg}: ${error.message}`, 'danger');
+                }
+            } finally {
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                    analyzeBtnEl.disabled = false;
+                }, 1000);
+            }
+        }
+
+        // 手部分析
+        async function startAnalysis() {
+            await startUnifiedAnalysis({
+                file: selectedFile, fieldName: 'video', apiEndpoint: '/analyze-video',
+                progressEl: analysisProgress, progressBarEl: progressBar, progressTextEl: progressText,
+                analyzeBtnEl: analyzeBtn, progressSection: analysisProgress,
+                useScalesCheckbox: useSavedScalesCheckbox,
+                displayFn: displayResults, successMsg: '手部分析完成', errorMsg: '分析失败', typeLabel: '手部'
+            });
+        }
+
+        // 步态分析
+        async function startGaitAnalysis() {
+            await startUnifiedAnalysis({
+                file: selectedGaitFile, fieldName: 'video', apiEndpoint: '/analyze-gait-video',
+                progressEl: gaitAnalysisProgress, progressBarEl: gaitProgressBar, progressTextEl: gaitProgressText,
+                analyzeBtnEl: analyzeGaitBtn, progressSection: gaitAnalysisProgress,
+                useScalesCheckbox: useSavedScalesForGaitCheckbox,
+                displayFn: displayGaitResults, successMsg: '步态分析完成', errorMsg: '步态分析失败', typeLabel: '步态'
+            });
+        }
+
+        // 语音分析
+        async function startVoiceAnalysis() {
+            await startUnifiedAnalysis({
+                file: selectedVoiceFile, fieldName: 'audio', apiEndpoint: '/analyze-voice',
+                progressEl: voiceAnalysisProgress, progressBarEl: voiceProgressBar, progressTextEl: voiceProgressText,
+                analyzeBtnEl: analyzeVoiceBtn, progressSection: voiceAnalysisProgress,
+                useScalesCheckbox: useSavedScalesForVoiceCheckbox,
+                displayFn: displayVoiceResults, successMsg: '语音分析完成', errorMsg: '语音分析失败', typeLabel: '语音'
+            });
+        }
+
+        // 螺旋图分析
+        async function startSpiralAnalysis() {
+            if (!selectedSpiralFile) {
+                showNotification('请先选择螺旋图图像文件', 'warning');
+                return;
+            }
+
+            const modelReady = await checkModelStatus();
+            if (!modelReady) return;
+
+            spiralAnalysisProgress.style.display = 'block';
+            analyzeSpiralBtn.disabled = true;
+
+            let scaleResponses = null;
+            if (useSavedScalesForSpiralCheckbox.checked && savedScaleResponses) {
+                scaleResponses = savedScaleResponses;
+                debugLog('螺旋图分析使用已保存的量表数据');
+            }
+
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedSpiralFile);
+                if (scaleResponses) formData.append('scale_responses', JSON.stringify(scaleResponses));
+
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 90) progress = 90;
+                    spiralProgressBar.style.width = `${progress}%`;
+                    spiralProgressBar.setAttribute('aria-valuenow', progress);
+                    spiralProgressBar.textContent = `${Math.round(progress)}%`;
+                    if (progress < 30) spiralProgressText.textContent = '上传螺旋图图像...';
+                    else if (progress < 60) spiralProgressText.textContent = '分析螺旋图特征...';
+                    else if (scaleResponses) spiralProgressText.textContent = '分析量表数据...';
+                    else spiralProgressText.textContent = '生成分析结果...';
+                }, 300);
+
+                debugLog('发送螺旋图分析请求到后端...');
+                const response = await fetch(`${API_BASE_URL}/analyze-spiral`, {
+                    method: 'POST',
+                    body: formData,
+                    signal: currentAbortController.signal
+                });
+
+                clearInterval(progressInterval);
+
+                spiralProgressBar.style.width = '100%';
+                spiralProgressBar.setAttribute('aria-valuenow', 100);
+                spiralProgressBar.textContent = '100%';
+                spiralProgressText.textContent = '处理完成';
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '服务器错误');
+                }
+
+                const result = await response.json();
+                debugLog(`收到螺旋图分析结果: ${JSON.stringify(result)}`);
+
+                displaySpiralResults(result);
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                showNotification('螺旋图分析完成', 'success');
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    debugLog('螺旋图分析已取消');
+                    showNotification('分析已取消', 'info');
+                } else {
+                    debugLog(`螺旋图分析失败: ${error.message}`);
+                    showNotification(`分析失败: ${error.message}`, 'danger');
+                }
+            } finally {
+                setTimeout(() => {
+                    spiralAnalysisProgress.style.display = 'none';
+                    analyzeSpiralBtn.disabled = false;
+                }, 1000);
+            }
+        }
+
+        // 融合分析
+        async function startFusionAnalysis() {
+            if (!selectedFusionVideoFile) {
+                showNotification('请先选择视频文件', 'warning');
+                return;
+            }
+
+            const fusionMode = document.querySelector('input[name="fusion-mode"]:checked').value;
+            if (fusionMode === 'ultimate' && !selectedFusionImageFile) {
+                showNotification('全模态融合需要同时上传视频和螺旋图图像', 'warning');
+                return;
+            }
+
+            const modelReady = await checkModelStatus();
+            if (!modelReady) return;
+
+            fusionAnalysisProgress.style.display = 'block';
+            analyzeFusionBtn.disabled = true;
+
+            let scaleResponses = null;
+            if (useSavedScalesForFusionCheckbox.checked && savedScaleResponses) {
+                scaleResponses = savedScaleResponses;
+                debugLog('融合分析使用已保存的量表数据');
+            }
+
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+
+            try {
+                const formData = new FormData();
+                formData.append('video', selectedFusionVideoFile);
+
+                if (fusionMode === 'ultimate' && selectedFusionImageFile) {
+                    formData.append('image', selectedFusionImageFile);
+                }
+
+                if (includeVoiceInFusionCheckbox.checked && selectedFusionVoiceFile) {
+                    formData.append('audio', selectedFusionVoiceFile);
+                }
+
+                if (scaleResponses) formData.append('scale_responses', JSON.stringify(scaleResponses));
+
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress > 90) progress = 90;
+                    fusionProgressBar.style.width = `${progress}%`;
+                    fusionProgressBar.setAttribute('aria-valuenow', progress);
+                    fusionProgressBar.textContent = `${Math.round(progress)}%`;
+                    if (progress < 20) fusionProgressText.textContent = '上传文件...';
+                    else if (progress < 40) fusionProgressText.textContent = '提取手部特征...';
+                    else if (progress < 60) fusionProgressText.textContent = '提取步态特征...';
+                    else if (progress < 70 && fusionMode === 'ultimate') fusionProgressText.textContent = '提取螺旋图特征...';
+                    else if (progress < 85 && includeVoiceInFusionCheckbox.checked) fusionProgressText.textContent = '提取语音特征...';
+                    else if (scaleResponses) fusionProgressText.textContent = '分析量表数据...';
+                    else fusionProgressText.textContent = '生成融合结果...';
+                }, 300);
+
+                const apiEndpoint = fusionMode === 'ultimate' ? '/analyze-ultimate-fusion' : '/analyze-fusion';
+                debugLog(`发送${fusionMode === 'ultimate' ? '全模态' : '基础'}融合分析请求到后端...`);
+
+                const response = await fetch(`${API_BASE_URL}${apiEndpoint}`, {
+                    method: 'POST',
+                    body: formData,
+                    signal: currentAbortController.signal
+                });
+
+                clearInterval(progressInterval);
+
+                fusionProgressBar.style.width = '100%';
+                fusionProgressBar.setAttribute('aria-valuenow', 100);
+                fusionProgressBar.textContent = '100%';
+                fusionProgressText.textContent = '处理完成';
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '服务器错误');
+                }
+
+                const result = await response.json();
+                debugLog(`收到融合分析结果: ${JSON.stringify(result)}`);
+
+                displayFusionResults(result);
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                showNotification('融合分析完成', 'success');
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    debugLog('融合分析已取消');
+                    showNotification('分析已取消', 'info');
+                } else {
+                    debugLog(`融合分析失败: ${error.message}`);
+                    showNotification(`分析失败: ${error.message}`, 'danger');
+                }
+            } finally {
+                setTimeout(() => {
+                    fusionAnalysisProgress.style.display = 'none';
+                    analyzeFusionBtn.disabled = false;
+                }, 1000);
+            }
+        }
+
+        // 收集量表回答
+        function collectScaleResponses() {
+            const responses = {
+                'updrs': [],
+                'moca': [],
+                'beck': []
+            };
+            
+            // 收集UPDRS量表回答
+            for (let i = 1; i <= 5; i++) {
+                const selectedOption = document.querySelector(`input[name="updrs_${i}"]:checked`);
+                if (selectedOption) {
+                    responses.updrs.push(parseInt(selectedOption.value));
+                } else {
+                    responses.updrs.push(-1); // -1表示未回答
+                }
+            }
+            
+            // 收集MoCA量表回答
+            for (let i = 1; i <= 5; i++) {
+                const selectedOption = document.querySelector(`input[name="moca_${i}"]:checked`);
+                if (selectedOption) {
+                    responses.moca.push(parseInt(selectedOption.value));
+                } else {
+                    responses.moca.push(-1); // -1表示未回答
+                }
+            }
+            
+            // 收集贝克抑郁量表回答
+            for (let i = 1; i <= 5; i++) {
+                const selectedOption = document.querySelector(`input[name="beck_${i}"]:checked`);
+                if (selectedOption) {
+                    responses.beck.push(parseInt(selectedOption.value));
+                } else {
+                    responses.beck.push(-1); // -1表示未回答
+                }
+            }
+            
+            return responses;
+        }
+
+        // 保存量表回答
+        function saveScaleResponses() {
+            const responses = collectScaleResponses();
+            localStorage.setItem('pdScaleResponses', JSON.stringify(responses));
+            savedScaleResponses = responses;
+            updateScaleStatus();
+            showNotification('量表数据已保存', 'success');
+            debugLog('量表数据已保存到本地存储');
+        }
+
+        // 加载已保存的量表回答
+        function loadSavedScaleResponses() {
+            try {
+                const saved = localStorage.getItem('pdScaleResponses');
+                if (saved) {
+                    savedScaleResponses = JSON.parse(saved);
+                    debugLog('从本地存储加载量表数据');
+                    
+                    // 恢复表单状态
+                    for (const [scaleId, answers] of Object.entries(savedScaleResponses)) {
+                        for (let i = 0; i < answers.length; i++) {
+                            if (answers[i] >= 0) { // 只恢复已回答的问题
+                                const option = document.querySelector(`input[name="${scaleId}_${i+1}"][value="${answers[i]}"]`);
+                                if (option) {
+                                    option.checked = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    updateScaleStatus();
+                    return true;
+                }
+            } catch (error) {
+                debugLog(`加载量表数据失败: ${error.message}`);
+            }
+            return false;
+        }
+
+        // 清除量表回答
+        function clearScaleResponses() {
+            if (confirm('确定要清除所有量表数据吗？此操作不可撤销。')) {
+                localStorage.removeItem('pdScaleResponses');
+                savedScaleResponses = null;
+                
+                // 清除所有选择
+                document.querySelectorAll('input[type="radio"]').forEach(input => {
+                    input.checked = false;
+                });
+                
+                updateScaleStatus();
+                showNotification('量表数据已清除', 'info');
+                debugLog('量表数据已清除');
+            }
+        }
+
+        // 更新量表状态
+        function updateScaleStatus() {
+            const responses = collectScaleResponses();
+            let totalQuestions = 0;
+            let answeredQuestions = 0;
+            
+            for (const [scaleId, answers] of Object.entries(responses)) {
+                totalQuestions += answers.length;
+                answeredQuestions += answers.filter(ans => ans >= 0).length;
+                
+                // 更新每个量表的进度
+                if (scaleId === 'updrs') {
+                    const score = answers.filter(ans => ans >= 0).reduce((sum, ans) => sum + ans, 0);
+                    const progress = (answeredQuestions / totalQuestions) * 100;
+                    
+                    document.getElementById('updrs_total_score').textContent = `总分: ${score}`;
+                    document.getElementById('updrs_progress').style.width = `${progress}%`;
+                    document.getElementById('updrs_progress').setAttribute('aria-valuenow', progress);
+                    document.getElementById('updrs_progress').textContent = `${Math.round(progress)}%`;
+                } else if (scaleId === 'moca') {
+                    const score = answers.filter(ans => ans >= 0).reduce((sum, ans) => sum + ans, 0);
+                    const progress = (answeredQuestions / totalQuestions) * 100;
+                    
+                    document.getElementById('moca_total_score').textContent = `总分: ${score}`;
+                    document.getElementById('moca_progress').style.width = `${progress}%`;
+                    document.getElementById('moca_progress').setAttribute('aria-valuenow', progress);
+                    document.getElementById('moca_progress').textContent = `${Math.round(progress)}%`;
+                } else if (scaleId === 'beck') {
+                    const score = answers.filter(ans => ans >= 0).reduce((sum, ans) => sum + ans, 0);
+                    const progress = (answeredQuestions / totalQuestions) * 100;
+                    
+                    document.getElementById('beck_total_score').textContent = `总分: ${score}`;
+                    document.getElementById('beck_progress').style.width = `${progress}%`;
+                    document.getElementById('beck_progress').setAttribute('aria-valuenow', progress);
+                    document.getElementById('beck_progress').textContent = `${Math.round(progress)}%`;
+                }
+            }
+            
+            // 更新总体状态
+            const overallProgress = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
+            
+            if (answeredQuestions === 0) {
+                scaleStatusText.textContent = '尚未开始填写';
+                scaleStatusText.className = 'scale-status status-empty';
+            } else if (overallProgress < 100) {
+                scaleStatusText.textContent = `已填写 ${answeredQuestions}/${totalQuestions} 题 (${Math.round(overallProgress)}%)`;
+                scaleStatusText.className = 'scale-status status-partial';
+            } else {
+                scaleStatusText.textContent = '所有量表已完成填写';
+                scaleStatusText.className = 'scale-status status-complete';
+            }
+            
+            // 更新保存按钮状态
+            saveScalesBtn.disabled = answeredQuestions === 0;
+        }
+
+        // 统一结果显示函数
+        function displayUnifiedResult(result, modalityType) {
+            debugLog(`开始显示${modalityType}结果: ${JSON.stringify(result)}`);
+            try {
+                if (!result || typeof result !== 'object') {
+                    showNotification('收到无效的结果数据', 'danger');
+                    return;
+                }
+
+                const parkinsons_probability = result.parkinsons_probability || 0;
+                const healthy_probability = result.healthy_probability || (100 - parkinsons_probability);
+                const risk_level = result.risk_level || '未知';
+                const recommendation = result.recommendation || '无建议';
+                const features = result.features || {};
+
+                // 更新概率条
+                setTimeout(() => {
+                    parkinsonsProb.style.width = `${parkinsons_probability}%`;
+                    parkinsonsProb.textContent = `${parkinsons_probability.toFixed(1)}%`;
+                    healthyProb.style.width = `${healthy_probability}%`;
+                    healthyProb.textContent = `${healthy_probability.toFixed(1)}%`;
+                }, 100);
+
+                // 根据风险等级设置样式
+                let riskClass;
+                if (risk_level.includes('极高')) riskClass = 'risk-extreme';
+                else if (risk_level.includes('高')) riskClass = 'risk-high';
+                else if (risk_level.includes('中')) riskClass = 'risk-medium';
+                else if (risk_level.includes('轻度')) riskClass = 'risk-mild';
+                else if (risk_level.includes('低')) riskClass = 'risk-low';
+                else riskClass = 'risk-normal';
+
+                resultCard.className = `result-card ${riskClass}`;
+                document.getElementById('risk-level').textContent = risk_level;
+                document.getElementById('recommendation').textContent = recommendation;
+
+                // 更新结果分解（根据模态类型选择对应的字段）
+                const analysisKey = modalityType === '手部' ? 'hand_analysis' : modalityType === '步态' ? 'gait_analysis' : modalityType === '语音' ? 'voice_analysis' : 'spiral_analysis';
+                if (result[analysisKey] && result.scale_evaluation) {
+                    videoProbText.textContent = `${modalityType}分析: ${result[analysisKey].parkinsons_probability.toFixed(1)}%`;
+                    if (result.scale_evaluation.score_details) {
+                        let scaleText = '量表综合风险: ';
+                        scaleText += result.scale_evaluation.overall_risk || Object.entries(result.scale_evaluation.score_details)
+                            .map(([_, info]) => `${info.name}: ${info.risk_level}`).join(', ');
+                        scaleProbText.textContent = scaleText;
+                    } else {
+                        scaleProbText.textContent = `量表评分: ${result.scale_evaluation.scale_score.toFixed(1)}分`;
+                    }
+                    document.getElementById('video-weight').style.width = `${result[analysisKey].weight}%`;
+                    document.getElementById('video-weight').textContent = `${result[analysisKey].weight}%`;
+                    document.getElementById('scale-weight').style.width = `${result.scale_evaluation.weight}%`;
+                    document.getElementById('scale-weight').textContent = `${result.scale_evaluation.weight}%`;
+                }
+
+                // 更新对应模态的特征列表
+                let featureListEl, chartFn;
+                let displayFeatures = {};
+
+                if (modalityType === '手部') {
+                    featureListEl = featuresList;
+                    chartFn = (f) => initGenericChart(f, '特征');
+                    displayFeatures = {
+                        '震颤频率': `${features.tremor_frequency?.toFixed(2) || 0} Hz`,
+                        '震颤幅度': `${features.tremor_amplitude?.toFixed(2) || 0} mm`,
+                        '手指敲击速度': `${features.finger_tap_speed?.toFixed(2) || 0} 单位/秒`,
+                        '握力变化': `${features.grip_strength_change?.toFixed(2) || 0} 单位`,
+                        '运动迟缓评分': `${features.bradykinesia_score?.toFixed(1) || 0}/10`,
+                        '僵硬程度评分': `${features.rigidity_score?.toFixed(1) || 0}/10`,
+                        '静止性震颤持续时间': `${features.rest_tremor_duration?.toFixed(1) || 0} 秒`
+                    };
+                } else if (modalityType === '步态') {
+                    featureListEl = gaitFeaturesList;
+                    chartFn = (f) => initGenericChart(f, '步态特征');
+                    displayFeatures = {
+                        '步幅长度': `${features.stride_length?.toFixed(2) || 0} 单位`,
+                        '步幅变异性': `${features.stride_length_variability?.toFixed(2) || 0} 单位`,
+                        '步宽': `${features.step_width?.toFixed(2) || 0} 单位`,
+                        '步宽变异性': `${features.step_width_variability?.toFixed(2) || 0} 单位`,
+                        '步时': `${features.step_time?.toFixed(2) || 0} 秒`,
+                        '步时变异性': `${features.step_time_variability?.toFixed(2) || 0} 秒`,
+                        '行走速度': `${features.walking_speed?.toFixed(2) || 0} 单位/秒`,
+                        '步频': `${features.cadence?.toFixed(2) || 0} 步/秒`,
+                        '手臂摆动幅度': `${features.arm_swing_amplitude?.toFixed(2) || 0} 单位`,
+                        '躯干摇摆幅度': `${features.trunk_sway_amplitude?.toFixed(2) || 0} 单位`,
+                        '脚尖离地角度': `${features.toe_off_angle?.toFixed(2) || 0} 度`,
+                        '脚跟着地角度': `${features.heel_strike_angle?.toFixed(2) || 0} 度`
+                    };
+                } else if (modalityType === '螺旋图') {
+                    featureListEl = spiralFeaturesList;
+                    chartFn = (f) => initGenericChart(f, '螺旋图特征');
+                    displayFeatures = {
+                        '线条平滑度': `${features.line_smoothness?.toFixed(2) || 0}`,
+                        '线条弯曲度': `${features.line_curvature?.toFixed(2) || 0}`,
+                        '线条不规则性': `${features.line_irregularity?.toFixed(2) || 0}`,
+                        '笔触稳定性': `${features.stroke_stability?.toFixed(2) || 0}`,
+                        '闭合程度': `${features.closure_score?.toFixed(2) || 0}`,
+                        '线条宽度变化': `${features.line_width_variation?.toFixed(2) || 0}`,
+                        '书写速度变化': `${features.writing_speed_variation?.toFixed(2) || 0}`,
+                        '震颤指标': `${features.tremor_index?.toFixed(2) || 0}`
+                    };
+                } else {
+                    featureListEl = voiceFeaturesList;
+                    chartFn = (f) => initGenericChart(f, '语音特征');
+                    if (features['MDVP:Fo(Hz)']) displayFeatures['基频均值'] = `${features['MDVP:Fo(Hz)']?.toFixed(2)} Hz`;
+                    if (features['MDVP:Jitter(%)']) displayFeatures['Jitter (%)'] = `${features['MDVP:Jitter(%)']?.toFixed(4)} %`;
+                    if (features['MDVP:Shimmer']) displayFeatures['Shimmer'] = `${features['MDVP:Shimmer']?.toFixed(4)}`;
+                    if (features['NHR']) displayFeatures['NHR'] = `${features['NHR']?.toFixed(4)}`;
+                    if (features['HNR']) displayFeatures['HNR'] = `${features['HNR']?.toFixed(4)}`;
+                    if (features['RPDE']) displayFeatures['RPDE'] = `${features['RPDE']?.toFixed(4)}`;
+                    if (features['DFA']) displayFeatures['DFA'] = `${features['DFA']?.toFixed(4)}`;
+                    for (let i = 0; i < 5; i++) {
+                        const v = features[`mfcc_${i}_mean`];
+                        if (v !== undefined) displayFeatures[`MFCC ${i+1}`] = v.toFixed(2);
+                    }
+                }
+
+                if (result.scale_score !== undefined) {
+                    displayFeatures['量表综合评分'] = `${result.scale_score.toFixed(1)}/100`;
+                }
+
+                featureListEl.innerHTML = '';
+                for (const [name, value] of Object.entries(displayFeatures)) {
+                    const item = document.createElement('div');
+                    item.className = 'feature-item';
+                    item.innerHTML = `<div class="feature-name">${name}</div><div class="feature-value">${value}</div>`;
+                    featureListEl.appendChild(item);
+                }
+
+                // 显示量表评分详情
+                renderScaleDetails(result);
+
+                // 初始化图表
+                chartFn(displayFeatures);
+                debugLog(`${modalityType}结果显示完成`);
+            } catch (error) {
+                debugLog(`显示${modalityType}结果时出错: ${error.message}`);
+                showNotification(`显示结果时出错: ${error.message}`, 'danger');
+            }
+        }
+
+        // 渲染量表评分详情（提取公共逻辑）
+        function renderScaleDetails(result) {
+            if (result.scale_evaluation && result.scale_evaluation.score_details) {
+                scaleScoresSection.style.display = 'block';
+                scaleScoresContainer.innerHTML = '';
+                for (const [scaleId, scoreInfo] of Object.entries(result.scale_evaluation.score_details)) {
+                    const card = document.createElement('div');
+                    card.className = 'scale-summary-card';
+                    card.innerHTML = `
+                        <div class="scale-summary-header">
+                            <h5 class="scale-summary-title">${scoreInfo.name}</h5>
+                            <span class="scale-summary-score">${scoreInfo.total_score}/${scoreInfo.max_score}</span>
+                        </div>
+                        <p class="scale-summary-risk">
+                            <span class="risk-badge risk-${scoreInfo.risk_level.toLowerCase().replace(/\s+/g, '-')}">${scoreInfo.risk_level}</span>
+                            <span> - ${scoreInfo.description}</span>
+                        </p>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: ${scoreInfo.score_percentage || 0}%;" 
+                                 aria-valuenow="${scoreInfo.score_percentage || 0}" aria-valuemin="0" aria-valuemax="100">
+                                ${Math.round(scoreInfo.score_percentage || 0)}%
+                            </div>
+                        </div>
+                    `;
+                    scaleScoresContainer.appendChild(card);
+                }
+            } else {
+                scaleScoresSection.style.display = 'none';
+            }
+        }
+
+        // 保持向后兼容的接口
+        function displayResults(result) { displayUnifiedResult(result, '手部'); }
+        function displayGaitResults(result) { displayUnifiedResult(result, '步态'); }
+        function displayVoiceResults(result) { displayUnifiedResult(result, '语音'); }
+        function displaySpiralResults(result) { displayUnifiedResult(result, '螺旋图'); }
+
+        // 融合分析结果显示
+        function displayFusionResults(result) {
+            debugLog(`显示融合分析结果: ${JSON.stringify(result)}`);
+            try {
+                if (!result || typeof result !== 'object') {
+                    showNotification('收到无效的结果数据', 'danger');
+                    return;
+                }
+
+                const parkinsons_probability = result.parkinsons_probability || 0;
+                const healthy_probability = result.healthy_probability || (100 - parkinsons_probability);
+                const risk_level = result.risk_level || '未知';
+                const recommendation = result.recommendation || '无建议';
+
+                // 更新概率条
+                setTimeout(() => {
+                    parkinsonsProb.style.width = `${parkinsons_probability}%`;
+                    parkinsonsProb.textContent = `${parkinsons_probability.toFixed(1)}%`;
+                    healthyProb.style.width = `${healthy_probability}%`;
+                    healthyProb.textContent = `${healthy_probability.toFixed(1)}%`;
+                }, 100);
+
+                // 根据风险等级设置样式
+                let riskClass;
+                if (risk_level.includes('极高')) riskClass = 'risk-extreme';
+                else if (risk_level.includes('高')) riskClass = 'risk-high';
+                else if (risk_level.includes('中')) riskClass = 'risk-medium';
+                else if (risk_level.includes('轻度')) riskClass = 'risk-mild';
+                else if (risk_level.includes('低')) riskClass = 'risk-low';
+                else riskClass = 'risk-normal';
+
+                resultCard.className = `result-card ${riskClass}`;
+                document.getElementById('risk-level').textContent = risk_level;
+                document.getElementById('recommendation').textContent = recommendation;
+
+                // 更新结果分解
+                if (result.fusion_analysis) {
+                    const fusionAnalysis = result.fusion_analysis;
+                    videoProbText.textContent = `融合分析: ${fusionAnalysis.parkinsons_probability.toFixed(1)}%`;
+                    document.getElementById('video-weight').style.width = `${fusionAnalysis.weight}%`;
+                    document.getElementById('video-weight').textContent = `${fusionAnalysis.weight}%`;
+                }
+
+                if (result.voice_analysis) {
+                    scaleProbText.textContent = `语音分析已融合，软门限: ${result.voice_analysis.gating}`;
+                } else if (result.scale_evaluation) {
+                    scaleProbText.textContent = `量表评分: ${result.scale_evaluation.scale_score.toFixed(1)}分`;
+                }
+
+                if (result.scale_evaluation) {
+                    document.getElementById('scale-weight').style.width = `${result.scale_evaluation.weight}%`;
+                    document.getElementById('scale-weight').textContent = `${result.scale_evaluation.weight}%`;
+                }
+
+                // 显示量表评分详情
+                renderScaleDetails(result);
+
+                // 显示融合特征
+                displayFusionFeatures(result);
+
+                // 初始化图表
+                let displayFeatures = {};
+                if (result.hand_features) {
+                    Object.assign(displayFeatures, result.hand_features);
+                }
+                if (result.gait_features) {
+                    Object.assign(displayFeatures, result.gait_features);
+                }
+                if (result.spiral_features) {
+                    Object.assign(displayFeatures, result.spiral_features);
+                }
+
+                // 提取数值用于图表
+                const featureValues = [];
+                const featureLabels = [];
+                for (const [key, value] of Object.entries(displayFeatures)) {
+                    const numValue = typeof value === 'number' ? value : 0;
+                    featureValues.push(numValue);
+                    featureLabels.push(key);
+                }
+
+                if (featureValues.length > 0) {
+                    const displayObj = {};
+                    featureLabels.forEach((label, i) => {
+                        displayObj[label] = featureValues[i];
+                    });
+                    initGenericChart(displayObj, '融合特征');
+                }
+
+                debugLog('融合分析结果显示完成');
+            } catch (error) {
+                debugLog(`显示融合分析结果时出错: ${error.message}`);
+                showNotification(`显示结果时出错: ${error.message}`, 'danger');
+            }
+        }
+
+        // 显示融合特征
+        function displayFusionFeatures(result) {
+            // 清空手部特征列表
+            featuresList.innerHTML = '';
+            if (result.hand_features) {
+                const handFeatures = {
+                    '震颤频率': `${result.hand_features.tremor_frequency?.toFixed(2) || 0} Hz`,
+                    '震颤幅度': `${result.hand_features.tremor_amplitude?.toFixed(2) || 0} mm`,
+                    '手指敲击速度': `${result.hand_features.finger_tap_speed?.toFixed(2) || 0} 单位/秒`,
+                    '握力变化': `${result.hand_features.grip_strength_change?.toFixed(2) || 0} 单位`,
+                    '运动迟缓评分': `${result.hand_features.bradykinesia_score?.toFixed(1) || 0}/10`,
+                    '僵硬程度评分': `${result.hand_features.rigidity_score?.toFixed(1) || 0}/10`
+                };
+                for (const [name, value] of Object.entries(handFeatures)) {
+                    const item = document.createElement('div');
+                    item.className = 'feature-item';
+                    item.innerHTML = `<div class="feature-name">[手部] ${name}</div><div class="feature-value">${value}</div>`;
+                    featuresList.appendChild(item);
+                }
+            }
+
+            // 清空步态特征列表
+            gaitFeaturesList.innerHTML = '';
+            if (result.gait_features) {
+                const gaitFeatures = {
+                    '步幅长度': `${result.gait_features.stride_length?.toFixed(2) || 0} 单位`,
+                    '步幅变异性': `${result.gait_features.stride_length_variability?.toFixed(2) || 0} 单位`,
+                    '行走速度': `${result.gait_features.walking_speed?.toFixed(2) || 0} 单位/秒`,
+                    '步频': `${result.gait_features.cadence?.toFixed(2) || 0} 步/秒`
+                };
+                for (const [name, value] of Object.entries(gaitFeatures)) {
+                    const item = document.createElement('div');
+                    item.className = 'feature-item';
+                    item.innerHTML = `<div class="feature-name">[步态] ${name}</div><div class="feature-value">${value}</div>`;
+                    gaitFeaturesList.appendChild(item);
+                }
+            }
+
+            // 清空螺旋图特征列表
+            spiralFeaturesList.innerHTML = '';
+            if (result.spiral_features) {
+                const spiralFeatures = {
+                    '线条平滑度': `${result.spiral_features.line_smoothness?.toFixed(2) || 0}`,
+                    '线条弯曲度': `${result.spiral_features.line_curvature?.toFixed(2) || 0}`,
+                    '线条不规则性': `${result.spiral_features.line_irregularity?.toFixed(2) || 0}`,
+                    '笔触稳定性': `${result.spiral_features.stroke_stability?.toFixed(2) || 0}`,
+                    '闭合程度': `${result.spiral_features.closure_score?.toFixed(2) || 0}`
+                };
+                for (const [name, value] of Object.entries(spiralFeatures)) {
+                    const item = document.createElement('div');
+                    item.className = 'feature-item';
+                    item.innerHTML = `<div class="feature-name">[螺旋图] ${name}</div><div class="feature-value">${value}</div>`;
+                    spiralFeaturesList.appendChild(item);
+                }
+            }
+        }
+
+        // 统一图表初始化函数
+        function initGenericChart(features, labelPrefix) {
+            try {
+                debugLog(`初始化${labelPrefix}图表...`);
+
+                const featureValues = Object.values(features).map(v => {
+                    const match = v.match(/([0-9.]+)/);
+                    return match ? parseFloat(match[1]) : 0;
+                });
+                const featureLabels = Object.keys(features);
+
+                const radarCtx = document.getElementById('feature-radar-chart').getContext('2d');
+                if (radarChart) radarChart.destroy();
+
+                radarChart = new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: featureLabels,
+                        datasets: [{
+                            label: `${labelPrefix}值`,
+                            data: featureValues,
+                            backgroundColor: 'rgba(67, 97, 238, 0.2)',
+                            borderColor: 'rgba(67, 97, 238, 0.8)',
+                            pointBackgroundColor: 'rgba(67, 97, 238, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(67, 97, 238, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 10 } },
+                        plugins: { title: { display: true, text: `${labelPrefix}雷达图` } }
+                    }
+                });
+
+                const barCtx = document.getElementById('feature-bar-chart').getContext('2d');
+                if (barChart) barChart.destroy();
+
+                const colors = [
+                    'rgba(255, 0, 110, 0.7)', 'rgba(67, 97, 238, 0.7)', 'rgba(6, 255, 165, 0.7)',
+                    'rgba(255, 190, 11, 0.7)', 'rgba(0, 123, 255, 0.7)', 'rgba(111, 66, 193, 0.7)',
+                    'rgba(255, 99, 132, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)'
+                ];
+
+                barChart = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: featureLabels,
+                        datasets: [{
+                            label: `${labelPrefix}值`,
+                            data: featureValues,
+                            backgroundColor: featureLabels.map((_, i) => colors[i % colors.length]),
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { title: { display: true, text: `${labelPrefix}柱状图` } }
+                    }
+                });
+
+                debugLog(`${labelPrefix}图表初始化完成`);
+            } catch (error) {
+                debugLog(`初始化图表时出错: ${error.message}`);
+            }
+        }
+
+        // 保留向后兼容的图表初始化接口
+        function initCharts(features) { initGenericChart(features, '特征'); }
+        function initGaitCharts(features) { initGenericChart(features, '步态特征'); }
+        function initVoiceCharts(features) { initGenericChart(features, '语音特征'); }
+
+        // 启动摄像头
+        async function startCamera() {
+            try {
+                // 显示加载状态
+                cameraPlaceholder.innerHTML = `
+                    <div class="text-center text-muted">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p>正在启动摄像头...</p>
+                    </div>
+                `;
+                
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                
+                cameraFeed.srcObject = mediaStream;
+                
+                // 等待视频元数据加载完成
+                cameraFeed.onloadedmetadata = () => {
+                    // 显示摄像头视频，隐藏占位符
+                    cameraFeed.style.display = 'block';
+                    cameraPlaceholder.style.display = 'none';
+                    
+                    // 显示温馨提示
+                    cameraInstructions.classList.add('active');
+
+                    startCameraBtn.disabled = true;
+                    stopCameraBtn.disabled = false;
+                    startDetectionBtn.disabled = false;
+
+                    showNotification('摄像头已启动', 'success');
+                };
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                
+                // 恢复占位符
+                cameraPlaceholder.innerHTML = `
+                    <div class="text-center text-danger">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+                        <p>无法访问摄像头，请检查权限设置</p>
+                    </div>
+                `;
+                
+                showNotification('无法访问摄像头，请检查权限设置', 'danger');
+            }
+        }
+
+        // 关闭摄像头
+        function stopCamera() {
+            // 停止所有媒体流轨道
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+
+            // 隐藏摄像头视频，显示占位符
+            cameraFeed.style.display = 'none';
+            cameraPlaceholder.style.display = 'flex';
+            
+            // 重置占位符内容
+            cameraPlaceholder.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="bi bi-camera" style="font-size: 3rem;"></i>
+                    <p>摄像头预览区域</p>
+                </div>
+            `;
+            
+            // 隐藏温馨提示
+            cameraInstructions.classList.remove('active');
+
+            // 更新按钮状态
+            startCameraBtn.disabled = false;
+            stopCameraBtn.disabled = true;
+            startDetectionBtn.disabled = true;
+            stopDetectionBtn.disabled = true;
+
+            // 如果正在检测，也停止检测
+            if (!stopDetectionBtn.disabled) {
+                stopDetection();
+            }
+
+            showNotification('摄像头已关闭', 'info');
+        }
+
+        // 开始检测
+        async function startDetection() {
+            if (!isConnected) {
+                showNotification('后端服务未连接，请稍后再试', 'warning');
+                return;
+            }
+
+            const duration = parseInt(detectionDurationInput.value);
+
+            // 显示倒计时
+            detectionCountdown.style.display = 'block';
+            countdownTimer.textContent = duration;
+
+            // 禁用按钮
+            startDetectionBtn.disabled = true;
+            stopDetectionBtn.disabled = false;
+
+            // 获取量表数据（如果选择使用）
+            let scaleResponses = null;
+            if (useScalesInDetectionCheckbox.checked && savedScaleResponses) {
+                scaleResponses = savedScaleResponses;
+                debugLog('实时检测使用已保存的量表数据');
+            }
+
+            // 发送开始检测请求
+            socket.emit('start_detection', { 
+                duration: duration,
+                scale_responses: scaleResponses
+            });
+
+            showNotification('实时检测已开始', 'info');
+        }
+
+        // 停止检测
+        function stopDetection() {
+            // 这里可以添加停止检测的逻辑
+            // 当前实现只是更新UI状态
+
+            // 隐藏倒计时
+            detectionCountdown.style.display = 'none';
+
+            // 更新按钮状态
+            startDetectionBtn.disabled = false;
+            stopDetectionBtn.disabled = true;
+
+            showNotification('实时检测已停止', 'info');
+        }
+
+        // 调整检测时长
+        function adjustDuration(delta) {
+            const currentValue = parseInt(detectionDurationInput.value);
+            const newValue = Math.max(10, Math.min(60, currentValue + delta));
+            detectionDurationInput.value = newValue;
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            debugLog(`显示通知: ${message} (${type})`);
+            
+            toastMessage.textContent = message;
+
+            // 更新 toast 样式
+            const toastHeader = notificationToast.querySelector('.toast-header');
+            toastHeader.className = 'toast-header';
+
+            if (type === 'success') {
+                toastHeader.classList.add('bg-success', 'text-white');
+            } else if (type === 'danger') {
+                toastHeader.classList.add('bg-danger', 'text-white');
+            } else if (type === 'warning') {
+                toastHeader.classList.add('bg-warning');
+            } else {
+                toastHeader.classList.add('bg-info', 'text-white');
+            }
+
+            // 显示 toast
+            const toast = new bootstrap.Toast(notificationToast);
+            toast.show();
+        }
+    </script>
+</body>
+</html>
